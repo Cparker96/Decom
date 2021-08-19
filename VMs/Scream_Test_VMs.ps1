@@ -1,8 +1,8 @@
-Connect-AzAccount -Environment AzureCloud
+Connect-AzAccount -Environment AzureUSGovernment
 
 # setting variables
 $subs = Get-AzSubscription 
-$vmlist = "TXAAPPAZU001", "TXAIDCAZU909"
+$vmlist = "TXBWORXAGCD01", "TXBFFIOTAGCD01"
 $targetvms = @()
 $tag = @{Decom="Scream Test"}
 
@@ -50,7 +50,9 @@ foreach ($targetvm in $targetvms)
     if (($null -eq $lock) -and !($targetvm.Tags.ContainsKey('Decom')) -and ($provisioningstate.Statuses[1].DisplayStatus -ne 'VM deallocated'))
     {
         Write-Host "The VM" $targetvm.Name "is not stopped, does not a have a Decom tag, or does not have a lock" -ForegroundColor Green
+    } else {
+        Write-Host "Success" -ForegroundColor Green
     }
-    Write-Host "Success" -ForegroundColor Green
+
 }
 
