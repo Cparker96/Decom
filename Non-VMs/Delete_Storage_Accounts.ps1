@@ -2,7 +2,7 @@ Connect-AzAccount -Environment AzureCloud
 
 # setting variables
 $subs = Get-AzSubscription 
-$storacclist = "testingstorageaccount3"
+$storacclist = "kauiotfunctionp94e2", "kauiothydrastoragedev", "kauiothydrastorageprod", "kauiotstoragequeuedev", "storageaccountkauteaf68", "kauiotblobstorage", "kauiotblobprod"
 $targetstoraccs = @()
 
 # delete storage accounts after soft delete time frame is complete
@@ -26,7 +26,10 @@ foreach ($targetstoracct in $targetstoraccs)
     # check to make sure that soft delete timeframe is up
     $validationproperties = Get-AzStorageBlobServiceProperty -ResourceGroupName $targetstoracct.ResourceGroupName -StorageAccountName $targetstoracct.StorageAccountName
 
-    if (($null -eq $validationproperties.DeleteRetentionPolicy.Days) -and ($validationproperties.DeleteRetentionPolicy.Enabled -eq $false))
+    # remove the resource lock
+    Remove-AzResourceLock -LockName 'DO NOT DELETE' -Scope $targetstoracct.Id -Force
+
+    if ($validationproperties.DeleteRetentionPolicy.Enabled -eq $true)
     {
         Remove-AzStorageAccount -ResourceGroupName $targetstoracct.ResourceGroupName -Name $targetstoracct.StorageAccountName -Force
         Write-Host "Storage account was deleted" -ForegroundColor Green
