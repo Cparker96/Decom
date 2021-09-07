@@ -3,10 +3,10 @@ Connect-AzAccount -Environment AzureCloud
 Set-AzContext -Subscription Enterprise
 
 # get my API keys from the key vault, need to use these in the headers var but don't know the syntax
-$accessKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'TenableAccessKey' -AsPlainText
-$secretKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'TenableSecretKey' -AsPlainText
+$accessKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableAccessKey' -AsPlainText
+$secretKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableSecretKey' -AsPlainText
 
-$unlinklist = 'TXAINFAZU901'
+$unlinklist = "TXBAPPHUR820V"
 $agents1 = [System.Collections.ArrayList]@()
 $agents2 = [System.Collections.ArrayList]@()
 $listallagents = [System.Collections.ArrayList]@()
@@ -42,12 +42,14 @@ foreach ($vm in $unlinklist)
         $headers = $null
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
         $targetagent = "https://cloud.tenable.com/scanners/1/agents/$agentid"
-        $headers.Add("X-ApiKeys", 'accessKey=$accessKey; secretKey=$secretKey')
+        $headers.Add("X-ApiKeys", "accessKey=$accessKey; secretKey=$secretKey")
         $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
 
         if ($unlink.StatusCode -ne 200)
         {
-            Write-Host: "Agent was not unlinked. Please try again." -ForegroundColor Red
+            Write-Host "Agent $($agentinfo.name) was not unlinked. Please try again." -ForegroundColor Red
+        }else {
+            Write-host "Agent $($agentinfo.name) was successfully unlinked" -ForegroundColor Green
         }
     }
 }
