@@ -1,4 +1,4 @@
-$vmlist = 'testingobject'
+$vmlist = "TXAAPPAZU281"
 $adcred = Get-Credential
 
 foreach ($vm in $vmlist)
@@ -10,5 +10,6 @@ foreach ($vm in $vmlist)
         Write-Host "This object name either doesn't exist in AD, or someone has deleted the object prior to this operation" -ForegroundColor Yellow
     } else {
         Get-ADComputer -Identity $vm | Remove-ADObject -Credential $adcred -Confirm:$false -Recursive
+        Write-Host $vm "was successfully taken out of AD" -ForegroundColor Green
     }
 }

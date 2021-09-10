@@ -2,7 +2,7 @@ Connect-AzAccount -Environment AzureCloud
 
 # setting variables
 $subs = Get-AzSubscription 
-$vmlist = 'TXUAPPAZU002', 'TXUAPPAZU005', 'TXAAPPAZU001', 'TXCDBSAZU800', 'TXCAPPAZU800'
+$vmlist = "TXAAPPAZU845"
 $targetvms = @()
 
 foreach ($sub in $subs)
