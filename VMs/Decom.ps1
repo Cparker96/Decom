@@ -2,7 +2,17 @@ Connect-AzAccount -Environment AzureCloud
 
 # setting variables
 $subs = Get-AzSubscription 
-$vmlist = "testdecomvm"
+$vmlist = 'tes11aasvm',
+'tes16aasvm',
+'tes17aasvm',
+'tes18rhelvm',
+'tes1aasvm',
+'tes21aasvm',
+'tes30rhelvm1',
+'tes30winvm',
+'testiiaasvm',
+'Ltestvm'
+
 $targetvms = @()
 $outstandingresources = $null
 
@@ -30,7 +40,7 @@ foreach ($targetvm in $targetvms)
     try 
     {
     #Deleting VM and resources associated
-    Remove-AzrVirtualMachine -Name $targetvm.Name -ResourceGroupName $targetvm.ResourceGroupName
+    Remove-tazVirtualMachine -Name $targetvm.Name -ResourceGroupName $targetvm.ResourceGroupName
 
     # set a sleep timer for it to delete all the associated resources, Azure takes time - BE PATIENT
     Start-Sleep -Seconds 300

@@ -1,6 +1,6 @@
 
 
-function Remove-AzrVirtualMachine {
+function Remove-tazVirtualMachine {
 	<#
 	.SYNOPSIS
 		This function is used to remove any Azure VMs as well as any attached disks. By default, this function creates a job
