@@ -2,7 +2,7 @@ Connect-AzAccount -Environment AzureUSGovernment
 
 # setting variables
 $subs = Get-AzSubscription 
-$vmlist = "TXBWORXAGCD01", "TXBFFIOTAGCD01"
+$vmlist = "TXSAPPBLT053V", "TXSAPPBLT057V"
 $targetvms = @()
 $tag = @{Decom="Scream Test"}
 
@@ -51,8 +51,7 @@ foreach ($targetvm in $targetvms)
     {
         Write-Host "The VM" $targetvm.Name "is not stopped, does not a have a Decom tag, or does not have a lock" -ForegroundColor Green
     } else {
-        Write-Host "Success" -ForegroundColor Green
+        Write-Host "Decom successful" -ForegroundColor Green
     }
-
 }
 
