@@ -44,7 +44,10 @@ foreach ($targetvm in $targetvms)
 
     # set a sleep timer for it to delete all the associated resources, Azure takes time - BE PATIENT
     Start-Sleep -Seconds 300
-
+    }
+    catch {
+        return $error[0].exception
+    }
     # first check to see if there are any rogue objects assoc. to the VM
     $rogueobj = Get-AzResource | where-object {$_.Name -match $targetvm.Name}
 
@@ -55,7 +58,7 @@ foreach ($targetvm in $targetvms)
         # if not null, evaulate resource type of each, perform logic based on type
         foreach ($obj in $rogueobj)
         {
-            if ($obj.ResourceType = 'Microsoft.Network/networkSecurityGroups')
+            if ($obj.ResourceType -eq 'Microsoft.Network/networkSecurityGroups')
             {
                 $nsg = Get-AzNetworkSecurityGroup -Name $obj.Name
                 # The "!" executes the same is $null, except $null is mainly used to check vars, not properties
@@ -66,10 +69,10 @@ foreach ($targetvm in $targetvms)
                 }
                 else {
                     Write-Host "Adding this to a list of outstanding resources for now..." -ForegroundColor Yellow
-                    $outstandingresources += $nsg
+                    $outstandingresources += $nsg.Name
                 }
             }
-            elseif ($obj.ResourceType = 'Microsoft.Automation/automationAccounts/runbooks') {
+            elseif ($obj.ResourceType -eq 'Microsoft.Automation/automationAccounts/runbooks') {
 
                 $runbook = Get-AzAutomationRunbook -Name $obj.Name -ResourceGroupName $obj.ResourceGroupName -AutomationAccountName $obj.AutomationAccountName
 
@@ -83,18 +86,32 @@ foreach ($targetvm in $targetvms)
                 }
                 else {
                     Write-Host "Adding this to a list of outstanding resources for now..." -ForegroundColor Yellow
-                    $outstandingresources += $runbook
+                    $outstandingresources += $runbook.Name
+                }
+            } elseif ($obj.ResourceType -eq 'Microsoft.Storage/storageAccounts') {
+                # checking to see if there are any containers, queues, etc. assoc. with the storage account
+                $storageAcc = Get-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name
+                $ctx = $storageAcc.Context
+                $containers = Get-AzStorageContainer -Context $ctx | where {$_.Name -notlike "*vhds*"}
+                $fileshares = Get-AzStorageShare -Context $ctx
+
+
+                if (($null -eq $containers) -and ($null -eq $fileshares))
+                {
+                    Write-Host "This storage account is empty. Deleting now..." -ForegroundColor Yellow
+                    Remove-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name -Force
+                }
+                else {
+                    Write-Host "Adding this to a list of outstanding resources for now..." -ForegroundColor Yellow
+                    $outstandingresources += $storageAcc.StorageAccountName
                 }
             }
         }
         # print var for visibility
         $outstandingresources
-        }
-    }
-    catch {
-        return $error[0].exception
     }
 }
+
 
 # $Body = "Hello 'server_owner',`n`nAs we decommissioned your azure resource(s) detailed in 'ticket_number', `
 # there were a few that came up as possibly still in use. Can you provide a 'yes' or 'no' regarding if these resources can be deleted? They look to be `
