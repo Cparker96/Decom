@@ -1,8 +1,8 @@
-Connect-AzAccount -Environment AzureUSGovernment
+Connect-AzAccount -Environment AzureCloud
 
 # setting variables
 $subs = Get-AzSubscription 
-$vmlist = "TXSAPPBLT053V", "TXSAPPBLT057V"
+$vmlist = "TXUDBSAZU901", "TXUAWSAZU003"
 $targetvms = @()
 $tag = @{Decom="Scream Test"}
 
