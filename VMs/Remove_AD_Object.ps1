@@ -1,5 +1,6 @@
-$vmlist = "TXAAPPAZU281"
+$vmlist = "TXUAWSAZU001", "TXKAPPAZU071"
 $adcred = Get-Credential
+Start-Sleep -Seconds 5
 
 foreach ($vm in $vmlist)
 {

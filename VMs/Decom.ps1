@@ -2,16 +2,7 @@ Connect-AzAccount -Environment AzureCloud
 
 # setting variables
 $subs = Get-AzSubscription 
-$vmlist = 'tes11aasvm',
-'tes16aasvm',
-'tes17aasvm',
-'tes18rhelvm',
-'tes1aasvm',
-'tes21aasvm',
-'tes30rhelvm1',
-'tes30winvm',
-'testiiaasvm',
-'Ltestvm'
+$vmlist = "TXUAWSAZU001", "TXKAPPAZU071"
 
 $targetvms = @()
 $outstandingresources = $null
@@ -35,7 +26,7 @@ foreach ($targetvm in $targetvms)
 {
     Set-AzContext -SubscriptionId $targetvm.SubId
 
-    #Remove-AzResourceLock -LockName 'SCREAM TEST' -Scope $targetvm.Id -Force
+    Remove-AzResourceLock -LockName 'SCREAM TEST' -Scope $targetvm.Id -Force
 
     try 
     {

@@ -6,7 +6,7 @@ Set-AzContext -Subscription Enterprise
 $accessKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableAccessKey' -AsPlainText
 $secretKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableSecretKey' -AsPlainText
 
-$unlinklist = "TXAAPPAZU281"
+$unlinklist = "TXUAWSAZU001", "TXKAPPAZU071"
 $agents1 = [System.Collections.ArrayList]@()
 $agents2 = [System.Collections.ArrayList]@()
 $listallagents = [System.Collections.ArrayList]@()
