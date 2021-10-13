@@ -51,7 +51,7 @@ foreach ($targetvm in $targetvms)
     {
         Write-Host "The VM" $targetvm.Name "is not stopped, does not a have a Decom tag, or does not have a lock" -ForegroundColor Green
     } else {
-        Write-Host "Decom successful" -ForegroundColor Green
+        Write-Host "Scream test initiated" -ForegroundColor Green
     }
 }
 
