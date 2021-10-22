@@ -6,50 +6,42 @@ Set-AzContext -Subscription Enterprise
 $accessKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableAccessKey' -AsPlainText
 $secretKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableSecretKey' -AsPlainText
 
-$unlinklist = "TXUAWSAZU001", "TXKAPPAZU071"
-$agents1 = [System.Collections.ArrayList]@()
-$agents2 = [System.Collections.ArrayList]@()
-$listallagents = [System.Collections.ArrayList]@()
-# gets all the relevant agents and info
-$headers = $null
-$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-$resource = 'https://cloud.tenable.com/scanners/1/agent-groups/101288/agents?offset=0&limit=5000'
-$headers.Add("X-ApiKeys", "accessKey=$accessKey; secretKey=$secretKey")
-$agents1 = (Invoke-RestMethod -Uri $resource -Method Get -Headers $headers).agents
-
-# gets all the relevant agents and info
-$headers = $null
-$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-$resource = 'https://cloud.tenable.com/scanners/1/agent-groups/101288/agents?offset=5001&limit=5000'
-$headers.Add("X-ApiKeys", "accessKey=$accessKey; secretKey=$secretKey")
-$agents2 = (Invoke-RestMethod -Uri $resource -Method Get -Headers $headers).agents
-
-$listallagents = $agents1 + $agents2
+$unlinklist = "TXAINFAZU902"
 
 foreach ($vm in $unlinklist)
 {
-    # filter first on the name of the machine you unlinking to get the info
-    $agentinfo = $listallagents | Where-Object {$_.name -eq $vm}
+    # gets all the relevant agents and info
+    $headers = $null
+    $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+    $resource = "https://cloud.tenable.com/scanners/null/agents?offset=0&limit=50&sort=name:asc&wf=core_version,distro,groups,ip,name,platform,status&w=$($vm)"
+    $headers.Add("X-ApiKeys", "accessKey=$accessKey; secretKey=$secretKey")
+    $agent = (Invoke-RestMethod -Uri $resource -Method Get -Headers $headers).agents
 
-    if ($null -eq $agentinfo)
+    if (($null -eq $agent) -or ($agent.count -eq 0))
     {
+        # check to see if agent even exists
         Write-Host "This agent has either been unlinked, or someone else has deleted it" -ForegroundColor Yellow
-    } else {
+    }elseif ($agent.count -gt 1) {
+        #check for multiple objects
+        write-host "Multiple objects were found with this server name. Please go troubleshoot" -ForegroundColor Red
+    }else {
+        write-host "Agent found. Unlinking..." -ForegroundColor Yellow
+
         # then get the ID to for the endpoint
-        $agentid = $agentinfo.id
+        $agentid = $agent.id
 
         #unlink the agent
         $headers = $null
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-        $targetagent = "https://cloud.tenable.com/scanners/1/agents/$agentid"
+        $targetagent = "https://cloud.tenable.com/scanners/1/agents/$($agentid)"
         $headers.Add("X-ApiKeys", "accessKey=$accessKey; secretKey=$secretKey")
         $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
 
         if ($unlink.StatusCode -ne 200)
         {
-            Write-Host "Agent $($agentinfo.name) was not unlinked. Please try again." -ForegroundColor Red
+            Write-Host "Agent $($agent.name) was not unlinked. Please try again." -ForegroundColor Red
         }else {
-            Write-host "Agent $($agentinfo.name) was successfully unlinked" -ForegroundColor Green
+            Write-host "Agent $($agent.name) was successfully unlinked" -ForegroundColor Green
         }
     }
 }
@@ -57,7 +49,7 @@ foreach ($vm in $unlinklist)
 
 
 
-### STUFF THAT I DON'T NEED TO USE RIGHT NOW ####
+### STUFF THAT I DON'T NEED TO USE RIGHT NOW BUT IS HELPFUL ####
 
 
 # lists the scanner details
