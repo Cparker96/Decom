@@ -2,7 +2,7 @@ Connect-AzAccount -Environment AzureCloud
 
 # setting variables
 $subs = Get-AzSubscription 
-$vmlist = "TXUAWSAZU001", "TXKAPPAZU071"
+$vmlist = "ORR-800"
 
 $targetvms = @()
 $outstandingresources = $null
@@ -99,7 +99,7 @@ foreach ($targetvm in $targetvms)
             }
         }
         # print var for visibility
-        $outstandingresources
+        write-host $outstandingresources
     }
 }
 
