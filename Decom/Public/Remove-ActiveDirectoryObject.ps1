@@ -20,81 +20,102 @@ Function Remove-ActiveDirectoryObject
     Param
     (
         [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
-        [parameter(Position = 0, Mandatory=$true)] [System.Management.Automation.PSCredential] $cred,
-        [Parameter(Mandatory=$true)][ValidateNotNull()][string] $credssp_RSAT_host
+        [parameter(Position = 0, Mandatory=$true)] [System.Management.Automation.PSCredential] $cred
     )
 
     [System.Collections.ArrayList]$Validation = @()
 
     try 
     {
-        $wsman = Enable-WSManCredSSP -Role Client -DelegateComputer $credssp_RSAT_host -Force
-        $SessionId = New-PSSession -ComputerName $credssp_RSAT_host -Credential $cred -Authentication Credssp
+        # check that ADUC is installed
+        Import-Module ActiveDirectory
+        start-sleep -seconds 10
+
+        $checkmodule = Get-Module ActiveDirectory
+
+        if ($checkmodule.Name -eq 'ActiveDirectory')
+        {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Import AD'
+            Status = 'Passed'
+            FriendlyError = ""
+            PsError = ''}) > $null
+
+            try 
+            {
+                # search for the object in AD
+                $search = Get-ADComputer -Identity $VM.Name -ErrorAction SilentlyContinue 
+
+                if ($null -eq $search)
+                {
+                    $Validation.Add([PSCustomObject]@{System = 'Server' 
+                    Step = 'AD Object Search'
+                    Status = 'Skipped'
+                    FriendlyError = "This object either doesn't exist, or someone has already deleted it"
+                    PsError = ''}) > $null
+                } else {
+                    $Validation.Add([PSCustomObject]@{System = 'Server' 
+                    Step = 'AD Object Search'
+                    Status = 'Passed'
+                    FriendlyError = "Found object. Removing..."
+                    PsError = ''}) > $null
+                    
+                    try 
+                    {
+                        # delete the object
+                        $deleteobject = Get-ADComputer -Identity $VM.Name | Remove-ADObject -Credential $cred -Confirm:$false -IncludeDeletedObjects -Recursive
+
+                        if ($null -eq $deleteobject)
+                        {
+                            $Validation.Add([PSCustomObject]@{System = 'Server' 
+                            Step = 'AD Object Delete'
+                            Status = 'Passed'
+                            FriendlyError = ""
+                            PsError = ''}) > $null
+                        } else {
+                            $Validation.Add([PSCustomObject]@{System = 'Server' 
+                            Step = 'AD Object Search'
+                            Status = 'Failed'
+                            FriendlyError = "Failed to delete AD object"
+                            PsError = $PSItem.Exception}) > $null
+                        }
+                    }
+                    catch {
+                        $Validation.Add([PSCustomObject]@{System = 'Server' 
+                        Step = 'AD Object Delete'
+                        Status = 'Failed'
+                        FriendlyError = "Could not delete AD object that was found"
+                        PsError = $PSItem.Exception}) > $null
+
+                        return $Validation
+                    }   
+                }
+            }
+            catch {
+                $Validation.Add([PSCustomObject]@{System = 'Server' 
+                Step = 'AD Object Search'
+                Status = 'Failed'
+                FriendlyError = "Failed to search for AD object"
+                PsError = ''}) > $null 
+
+                return $Validation
+            }
+        } else {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Import AD'
+            Status = 'Failed'
+            FriendlyError = "Failed to import AD"
+            PsError = $PSItem.Exception}) > $null
+        }
     }
     catch {
-        
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Import AD'
+        Status = 'Failed'
+        FriendlyError = "Failed to import module Active Directory. Please check"
+        PsError = $PSItem.Exception}) > $null
+
+        return $Validation
     }
-
-    # try 
-    # {
-    #     # find the object if it exists in AD
-    #     $search = Get-ADComputer -Identity $VM.Name -ErrorAction SilentlyContinue
-
-    #     if ($null -eq $search)
-    #     {
-    #         $Validation.Add([PSCustomObject]@{System = 'Server' 
-    #         Step = 'AD Object Search'
-    #         Status = 'Skipped'
-    #         FriendlyError = "The VM $($VM.Name) couldn't be found in AD, or has already been taken out"
-    #         PsError = ''}) > $null
-
-    #         break
-    #     } else {
-    #         $Validation.Add([PSCustomObject]@{System = 'Server' 
-    #         Step = 'AD Object Search'
-    #         Status = 'Passed'
-    #         FriendlyError = ""
-    #         PsError = ''}) > $null
-
-    #         try 
-    #         {
-    #             # delete the object
-    #             $deletedobject = -Identity $VM.Name | Remove-ADObject -Credential $adcred -Confirm:$false -Recursive 
-        
-    #             if ($null -eq $deletedobject)
-    #             {
-    #                 $Validation.Add([PSCustomObject]@{System = 'Server' 
-    #                 Step = 'AD Object Delete'
-    #                 Status = 'Passed'
-    #                 FriendlyError = ""
-    #                 PsError = ''}) > $null
-                
-    #             } else {
-    #                 $Validation.Add([PSCustomObject]@{System = 'Server' 
-    #                 Step = 'AD Object Delete'
-    #                 Status = 'Failed'
-    #                 FriendlyError = "There seems to be an issue with this object. Please go troubleshoot"
-    #                 PsError = $PSItem.Exception}) > $null
-    #             }
-    #         }
-    #         catch {
-    #             $Validation.Add([PSCustomObject]@{System = 'Server' 
-    #             Step = 'AD Object Delete'
-    #             Status = 'Failed'
-    #             FriendlyError = "Couldn't authenticate to AD. Please try again"
-    #             PsError = $PSItem.Exception}) > $null
-        
-    #             return $Validation
-    #         }
-    #     }   
-    # }
-    # catch {
-    #     $Validation.Add([PSCustomObject]@{System = 'Server' 
-    #     Step = 'AD Object Search'
-    #     Status = 'Failed'
-    #     FriendlyError = "Couldn't authenticate to AD. Please try again"
-    #     PsError = $PSItem.Exception}) > $null
-
-    #     return $Validation
-    # }
+    return $Validation
 }
