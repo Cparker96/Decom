@@ -5,8 +5,7 @@
 # Get server variables from the JSON
 try {
     $VmRF = Get-Content .\VM_Request_Fields.json | ConvertFrom-Json -AsHashtable
-}
-catch {
+} catch {
     Write-Error "Could not load VM_Request_Fields.json `r`n $($_.Exception)" -ErrorAction Stop
 }
 
@@ -101,32 +100,37 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
 {
     Write-Host "The VM $($VM.Name) has already gone through a scream test. Proceeding to other steps" -ForegroundColor Yellow -ErrorAction Stop
 } else {
-    Write-host "Starting scream test for $($VM.Name)" -ForegroundColor Yellow
+    Write-host "Starting scream test for $($VM.Name)"
     $Screamtest = Scream-Test -VM $VM
+    $Screamtest
+    exit
 }
 
 <#==================================
 Decom the machine
 ====================================#>
-$DeleteVMObject = Delete-VM -VM $VM
+Write-Host "Deleting the VM and its associated resources"
 
+$DeleteVMObject = Delete-VM -VM $VM
+$DeleteVMObject
 <#==================================
 Take the object out of AD
 ====================================#>
-# this part needs to ran in an elevated prompt to enable wsman command
-# $cred = Get-Credential -Message "Please enter your administrator credentials (username _a@txt.textron.com) and your ERPM password:"
-# $credssp_RSAT_host = "TXAINFAZU902.txt.textron.com"
+Write-host "Removing the object from AD"
+$cred = Get-Credential -Message "Please enter your administrator credentials (username _a@txt.textron.com) and your ERPM password:"
 
-# $DeleteADObject = Remove-ActiveDirectoryObject -VM $VM -cred $cred
+$DeleteADObject = Remove-ActiveDirectoryObject -VM $VM -cred $cred
+$DeleteADObject
+<#==================================
+Unlink the object from Tenable
+====================================#>
+Write-Host "Unlinking the Tenable agent"
 
-# <#==================================
-# Unlink the object from Tenable
-# ====================================#>
-# $UnlinkVMObject = UnlinkVM-Tenable -VM $VM -TenableAccessKey $TenableaccessKey -TenableSecretKey $TenableSecretKey 
-
-# <#=================================
-# Formulate Output
-# ===================================#>
+$UnlinkVMObject = UnlinkVM-Tenable -VM $VM -TenableAccessKey $TenableaccessKey -TenableSecretKey $TenableSecretKey 
+$UnlinkVMObject
+<#=================================
+Formulate Output
+===================================#>
 
 # $HostInformation = @()
 # $HostInformation = ($VmRF | select Hostname,

@@ -23,6 +23,7 @@ Function UnlinkVM-Tenable
         [parameter(Position = 1, Mandatory=$true)] [String] $TenableAccessKey,
         [parameter(Position = 2, Mandatory=$true)] [String] $TenableSecretKey
     )
+    [System.Collections.ArrayList]$Validation = @()
     try 
     {
         # gets the agent's info
@@ -64,7 +65,7 @@ Function UnlinkVM-Tenable
                 $headers = $null
                 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
                 $targetagent = "https://cloud.tenable.com/scanners/1/agents/$($agentid)"
-                $headers.Add("X-ApiKeys", "accessKey=$accessKey; secretKey=$secretKey")
+                $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
                 $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
         
                 if ($unlink.StatusCode -ne 200)
@@ -80,6 +81,8 @@ Function UnlinkVM-Tenable
                     Status = 'Passed'
                     FriendlyError = ""
                     PsError = ''}) > $null
+
+                    return $Validation
                 } 
             }
             catch {

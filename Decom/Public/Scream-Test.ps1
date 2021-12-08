@@ -126,8 +126,9 @@ Function Scream-Test
         Status = 'Failed'
         FriendlyError = "The VM $($VM.Name) was could not be locked. Pleaser try again"
         PsError = $PSItem.Exception}) > $null
+
+        return $Validation
     }
-    
     return $Validation
 }
 

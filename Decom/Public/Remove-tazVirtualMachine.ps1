@@ -25,40 +25,20 @@ function Remove-tazVirtualMachine {
 		If you'd rather wait for the Azure VM to be removed before returning control to the console, use this switch parameter.
 		If not, it will create a job and return a PSJob back.
 	#>
-	[CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
+	[CmdletBinding(SupportsShouldProcess=$true)]
 	param
 	(
-		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
-		[ValidateNotNullOrEmpty()]
-		[Alias('Name')]
-		[string]$VMName,
-		
-		[Parameter(Mandatory, ValueFromPipelineByPropertyName)]
-		[ValidateNotNullOrEmpty()]
-		[string]$ResourceGroupName,
-
-		[Parameter()]
-		[pscredential]$Credential,
-
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[switch]$Wait
-		
+        [parameter(ValueFromPipeline=$true, Mandatory = $true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM
 	)
-    #$VMName = 'TXBRAMCOGCCD01'
-    #$ResourceGroupName = 'SAP_Xtend'
-    #$credential
 
 	process {
 		$scriptBlock = {
-			param ($VMName,
-				$ResourceGroupName)
+			#param ($VM)
 			$commonParams = @{
-				'Name'              = $VMName;
-				'ResourceGroupName' = $ResourceGroupName
+				'Name'              = $VM.Name
+				'ResourceGroupName' = $VM.ResourceGroupName
 			}
-			$vm = Get-AzVm @commonParams
-				
+			#$vm = Get-AzVm @commonParams	
 			#region Remove the boot diagnostics disk
 			if ($vm.DiagnosticsProfile.bootDiagnostics) {
 				Write-Verbose -Message 'Removing boot diagnostics storage container...'
@@ -71,9 +51,9 @@ function Remove-tazVirtualMachine {
 
 				#region Get the VM ID
 				$azResourceParams = @{
-					'ResourceName'      = $VMName
+					'ResourceName'      = $VM.Name
 					'ResourceType'      = 'Microsoft.Compute/virtualMachines'
-					'ResourceGroupName' = $ResourceGroupName
+					'ResourceGroupName' = $VM.ResourceGroupName
 				}
 				$vmResource = Get-AzResource @azResourceParams
 				$vmId = $vmResource.Properties.VmId
@@ -163,13 +143,13 @@ function Remove-tazVirtualMachine {
 		}
 			
 		if ($Wait.IsPresent) {
-			& $scriptBlock -VMName $VMName -ResourceGroupName $ResourceGroupName
+			& $scriptBlock -VMName $VM.Name -ResourceGroupName $VM.ResourceGroupName
 		} else {
 			#$initScript = {$null = Login-AzAccount -Credential $Credential}
 			$jobParams = @{
 				'ScriptBlock'          = $scriptBlock
 				'InitializationScript' = $initScript
-				'ArgumentList'         = @($VMName, $ResourceGroupName)
+				'ArgumentList'         = @($VM.Name, $VM.ResourceGroupName)
 				'Name'                 = "Azure VM $VMName Removal"
 			}
 			Start-Job @jobParams 
