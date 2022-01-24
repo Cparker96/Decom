@@ -38,7 +38,7 @@ Function UnlinkVM-Tenable
         {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Identify Tenable Object'
-            Status = 'Failed'
+            Status = 'Skipped'
             FriendlyError = "This agent has either been unlinked, or someone else has deleted it"
             PsError = $PSItem.Exception}) > $null
 
@@ -82,8 +82,21 @@ Function UnlinkVM-Tenable
                     FriendlyError = ""
                     PsError = ''}) > $null
 
-                    return $Validation
+                    return $Validation, $unlink
                 } 
+
+                # try 
+                # {
+                #     # check agent status
+                #     $headers = $null
+                #     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+                #     $resource = "https://cloud.tenable.com/scanners/null/agents?offset=0&limit=50&sort=name:asc&wf=core_version,distro,groups,ip,name,platform,status&w=$($VM.Name)"
+                #     $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
+                #     $checkagent = (Invoke-WebRequest -Uri $resource -Method Get -Headers $headers).agents     
+                # }
+                # catch {
+                #     $PSItem.Exception
+                # }
             }
             catch {
                 $Validation.Add([PSCustomObject]@{System = 'Server' 
@@ -105,6 +118,8 @@ Function UnlinkVM-Tenable
 
         return $Validation
     }
+    
+    return $Validation, $unlink
 }
 
 
