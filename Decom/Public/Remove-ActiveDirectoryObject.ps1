@@ -88,7 +88,16 @@ Function Remove-ActiveDirectoryObject
                         PsError = $PSItem.Exception}) > $null
 
                         return $Validation
-                    }   
+                    }
+                    
+                    try 
+                    {
+                        # validate object is gone
+                        $reviewsearch = Get-ADComputer -Identity $VM.Name 
+                    }
+                    catch {
+                        $PSItem.Exception
+                    }
                 }
             }
             catch {
@@ -117,5 +126,5 @@ Function Remove-ActiveDirectoryObject
 
         return $Validation
     }
-    return $Validation
+    return $Validation, $reviewsearch
 }

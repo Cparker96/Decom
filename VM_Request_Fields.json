@@ -2,6 +2,6 @@
     "Hostname" : "Test123",
     "Environment" : "AzureCloud",
     "Subscription" : "Enterprise",
-    "Resource Group" : "308-Utility",
-    "Ticket Number" : "CHG0031959"
+    "Resource_Group" : "308-Utility",
+    "Change_Number" : "CHG0031510"
 }

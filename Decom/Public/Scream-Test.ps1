@@ -23,11 +23,45 @@ Function Scream-Test
     )
 
     [System.Collections.ArrayList]$Validation = @()
-    $tag = @{Decom="Scream Test"}
+    $tag = @{Decom="Scream Test $($VmRF.Change_Number)"}
+
+    try 
+    {
+        # update the tags 
+        Update-AzTag -ResourceId $VM.Id -Tag $tag -Operation Merge
+        start-sleep -Seconds 30
+
+        $checktags = Get-azTag -ResourceId $VM.Id
+        start-sleep -Seconds 30
+
+        if ($checktags.Properties.TagsProperty.Keys.Contains('Decom'))
+        {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Tag Server'
+            Status = 'Passed'
+            FriendlyError = ""
+            PsError = ''}) > $null
+        } else {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Tag Server'
+            Status = 'Failed'
+            FriendlyError = "The VM $($VM.Name) did not get tagged with a decom tag"
+            PsError = $PSItem.Exception}) > $null
+        }
+    }
+    catch {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Tag Server'
+        Status = 'Failed'
+        FriendlyError = "The VM $($VM.Name) was could not be tagged for decom"
+        PsError = $PSItem.Exception}) > $null
+
+        return $Validation
+    }
 
     try
     {
-        # first try and stop the machine and get the status
+        # stop the machine and get the status
         Stop-AzVM -Name $VM.Name -ResourceGroupName $VM.ResourceGroupName -Force
         $provisioningstate = $VM | Get-AzVM -Status
 
@@ -55,47 +89,15 @@ Function Scream-Test
 
         return $Validation
     }
-    
-    try 
-    {
-        # then update the tags 
-        Update-AzTag -ResourceId $VM.Id -Tag $tag -Operation Merge
-        start-sleep -Seconds 5
-
-        $checktags = Get-azTag -ResourceId $VM.Id
-        start-sleep -Seconds 5
-
-        if ($checktags.Properties.TagsProperty.Keys.Contains('Decom'))
-        {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Tag Server'
-            Status = 'Passed'
-            FriendlyError = ""
-            PsError = ''}) > $null
-        } else {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Tag Server'
-            Status = 'Failed'
-            FriendlyError = "The VM $($VM.Name) did not get tagged with a decom tag"
-            PsError = $PSItem.Exception}) > $null
-        }
-    }
-    catch {
-        $Validation.Add([PSCustomObject]@{System = 'Server' 
-        Step = 'Tag Server'
-        Status = 'Failed'
-        FriendlyError = "The VM $($VM.Name) was could not be tagged for decom"
-        PsError = $PSItem.Exception}) > $null
-
-        return $Validation
-    }
    
+    Start-sleep -Seconds 20
+    
     try 
     {
         # put a resource lock on the VM
         $newlock = New-AzResourceLock `
         -LockName 'SCREAM TEST' `
-        -LockLevel ReadOnly `
+        -LockLevel CanNotDelete `
         -Scope $VM.Id `
         -Force `
         -LockNotes 'This VM is under scream test. Contact CloudOperations@Textron.com for status'
@@ -117,6 +119,8 @@ Function Scream-Test
             Status = 'Failed'
             FriendlyError = "The VM $($VM.Name) could not be locked. Please check"
             PsError = ''}) > $null
+
+            return $Validation, $lock
         }      
     }
     catch 
@@ -129,7 +133,7 @@ Function Scream-Test
 
         return $Validation
     }
-    return $Validation
+    return $Validation, $lock
 }
 
 
