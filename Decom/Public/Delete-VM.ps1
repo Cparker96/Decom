@@ -24,12 +24,16 @@ Function Delete-VM
 
     # setting variables
     [System.Collections.ArrayList]$Validation = @()
+    [System.Collections.ArrayList]$resourcesdeleted = @()
     $outstandingresources = $null
+
 
     try 
     {
         # removing the lock
         Remove-AzResourceLock -LockName 'SCREAM TEST' -Scope $VM.Id -Force > $null
+        start-sleep -Seconds 60
+
         $retrievelock = get-azresourcelock -ResourceType "Microsoft.Compute/VirtualMachines" -ResourceName $VM.Name -ResourceGroupName $VM.ResourceGroupName
 
         if ($null -eq $retrievelock)
@@ -57,12 +61,15 @@ Function Delete-VM
         return $Validation
     }
 
-    Start-Sleep -Seconds 60
+    Start-Sleep -Seconds 200
 
     try 
     {
+        $getvm = Get-AzVM -Name $VM.Name
         # delete the VM only
         Remove-AzVM -Name $VM.Name -ResourceGroupName $VM.ResourceGroupName -Force > $null
+        start-sleep -Seconds 60
+
         $retrievevm = get-azvm -Name $VM.Name -ResourceGroupName $VM.ResourceGroupName -ErrorAction SilentlyContinue
 
         if ($null -eq $retrievevm)
@@ -72,6 +79,8 @@ Function Delete-VM
             Status = 'Passed'
             FriendlyError = ""
             PsError = ''}) > $null
+
+            $resourcesdeleted += $getvm
         } else {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Delete VM'
@@ -87,23 +96,29 @@ Function Delete-VM
         FriendlyError = "Could not delete VM $($VM.Name). Please check"
         PsError = $PSItem.Exception}) > $null
 
-        return $Validation
+        return $Validation, $resourcesdeleted
     }
     
-    Start-Sleep -Seconds 60
+    Start-Sleep -Seconds 200
 
     try 
     {
+        $getdisk = Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name
         # remove the OS disk
         $removeosdisk = Remove-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $VM.StorageProfile.OsDisk.Name -Force > $null
+        start-sleep -Seconds 60
 
-        if ($null -eq $removeosdisk)
+        $retrievedisk = Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name
+
+        if ($null -eq $retrievedisk)
         {   
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Remove OS Disk'
             Status = 'Passed'
             FriendlyError = ""
             PsError = ''}) > $null
+
+            $resourcesdeleted += $getdisk
         } else {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Remove OS Disk'
@@ -118,16 +133,17 @@ Function Delete-VM
         FriendlyError = "Could not find associated OS disk in Azure"
         PsError = $PSItem.Exception}) > $null
 
-        return $Validation
+        return $Validation, $resourcesdeleted
     }
 
-    start-sleep -Seconds 60
+    start-sleep -Seconds 200
 
     try 
     {
-        $tempname = $VM.Name
+        #$tempname = $VM.Name
         #Deleting associated resources
-        $resources = Get-AzResource -Name $tempname* 
+        $resources = Get-AzResource | where {($_.Name -match $VM.Name) -and (($_.ResourceType -eq 'Microsoft.Compute/disks') -or ($_.ResourceType -eq 'Microsoft.Compute/snapshots') -or ($_.ResourceType -eq 'Microsoft.Network/networkInterfaces'))}
+        start-sleep -Seconds 30
         
         if ($resources.Count -gt 0)
         {
@@ -139,11 +155,25 @@ Function Delete-VM
 
             foreach ($resource in $resources)
             {
-                Remove-AzResource -ResourceId $resource.ResourceId -Force > $null
+                if ($resource.ResourceType -eq 'Microsoft.Compute/disks')
+                {
+                    Write-host "Deleting any data disks"
+                    Remove-AzDisk -DiskName $resource.Name -ResourceGroupName $resource.ResourceGroupName -Force > $null
+                    Start-sleep -Seconds 100
+                    $resourcesdeleted += $resource
+                } elseif ($resource.ResourceType -eq 'Microsoft.Compute/snapshots') 
+                {
+                    Write-Host "Deleting any snapshots"
+                    Remove-AzSnapshot -ResourceGroupName $resource.ResourceGroupName -SnapshotName $resource.Name -Force > $null
+                    Start-Sleep -Seconds 100
+                    $resourcesdeleted += $resource
+                } else {
+                    Write-Host "Deleting the NIC"
+                    Remove-AzNetworkInterface -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name -Force > $null
+                    Start-sleep -Seconds 100
+                    $resourcesdeleted += $resource
+                }
             }
-
-            # set a sleep timer for it to delete all the associated resources, Azure takes time - BE PATIENT
-            Start-Sleep -Seconds 200
         } else {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Get Resources'
@@ -159,10 +189,10 @@ Function Delete-VM
         FriendlyError = "Could not get the resources for Decom"
         PsError = $PSItem.Exception}) > $null
 
-        return $Validation
+        return $Validation, $resourcesdeleted
     }
 
-    Start-Sleep -Seconds 60
+    Start-Sleep -Seconds 200
 
     try 
     {
@@ -190,7 +220,7 @@ Function Delete-VM
         FriendlyError = ""
         PsError = ''}) > $null
 
-        return $Validation
+        return $Validation, $resourcesdeleted
     }
 
     try 
@@ -254,7 +284,7 @@ Function Delete-VM
                             FriendlyError = "Couldn't locate and delete NSG. Please check"
                             PsError = $PSItem.Exception}) > $null
     
-                            return $Validation
+                            return $Validation, $resourcesdeleted
                         }
                     }
                     else {
@@ -265,7 +295,7 @@ Function Delete-VM
                         PsError = ''}) > $null
     
                         $outstandingresources += $nsg.Name
-                        return $Validation
+                        return $Validation, $resourcesdeleted
                     }
                 }
                 elseif ($obj.ResourceType -eq 'Microsoft.Automation/automationAccounts/runbooks') {
@@ -309,7 +339,7 @@ Function Delete-VM
                             FriendlyError = "Couldn't locate and delete runbook. Please check"
                             PsError = $PSItem.Exception}) > $null
     
-                            return $Validation
+                            return $Validation, $resourcesdeleted
                         }
                     }
                     else {
@@ -320,7 +350,7 @@ Function Delete-VM
                         PsError = ''}) > $null
     
                         $outstandingresources += $runbook.Name
-                        return $Validation
+                        return $Validation, $resourcesdeleted
                     }
                 } elseif ($obj.ResourceType -eq 'Microsoft.Storage/storageAccounts') {
                     # checking to see if there are any containers, queues, etc. assoc. with the storage account
@@ -364,7 +394,7 @@ Function Delete-VM
                             FriendlyError = "Couldn't locate and delete storage account. Please check"
                             PsError = $PSItem.Exception}) > $null
     
-                            return $Validation
+                            return $Validation, $resourcesdeleted
                         }
                     }
                     else {
@@ -375,7 +405,7 @@ Function Delete-VM
                         PsError = ''}) > $null
     
                         $outstandingresources += $storageAcc.StorageAccountName
-                        return $Validation
+                        return $Validation, $resourcesdeleted
                     }
                 } else {
                     $Validation.Add([PSCustomObject]@{System = 'Server' 
@@ -385,7 +415,7 @@ Function Delete-VM
                     PsError = ''}) > $null
     
                     $outstandingresources += $obj.Name
-                    return $Validation
+                    return $Validation, $resourcesdeleted
                 }
             }
         }
@@ -397,10 +427,10 @@ Function Delete-VM
         FriendlyError = "Could not pull any objects associated to the VM. Please check"
         PsError = $PSItem.Exception}) > $null
 
-        return $Validation
+        return $Validation, $resourcesdeleted, $outstandingresources
     }
-    # return the resources that need a second look
-    return $Validation, $outstandingresources
+    # return the resources that were deleted and need a second look
+    return $Validation, $resourcesdeleted, $outstandingresources
 }
 
 

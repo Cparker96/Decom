@@ -23,7 +23,15 @@ Function Scream-Test
     )
 
     [System.Collections.ArrayList]$Validation = @()
-    $tag = @{Decom="Scream Test $($VmRF.Change_Number)"}
+    $tag = @{Decom="Scream Test - $($VmRF.Change_Number)"}
+
+    # check to see if the VM is a domain controller first
+    if ($VmRF.Hostname -like "*IDC*") 
+    {
+        # remove the lock on the IDC
+        Remove-AzResourceLock -ResourceName $VM.Name -ResourceType "Microsoft.Compute/VirtualMachines" -Force > $null
+        start-sleep -Seconds 30
+    }
 
     try 
     {
@@ -65,6 +73,8 @@ Function Scream-Test
         Stop-AzVM -Name $VM.Name -ResourceGroupName $VM.ResourceGroupName -Force
         $provisioningstate = $VM | Get-AzVM -Status
 
+        Start-sleep -Seconds 30
+
         if ($provisioningstate.Statuses[1].DisplayStatus -ne 'VM deallocated')
         {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
@@ -89,8 +99,8 @@ Function Scream-Test
 
         return $Validation
     }
-   
-    Start-sleep -Seconds 20
+
+    Start-sleep -Seconds 30
     
     try 
     {
@@ -102,7 +112,7 @@ Function Scream-Test
         -Force `
         -LockNotes 'This VM is under scream test. Contact CloudOperations@Textron.com for status'
 
-        start-sleep -Seconds 5
+        start-sleep -Seconds 30
 
         $lock = get-azresourcelock -ResourceType "Microsoft.Compute/VirtualMachines" -ResourceName $VM.Name -ResourceGroupName $VM.ResourceGroupName
 
@@ -134,6 +144,9 @@ Function Scream-Test
         return $Validation
     }
     return $Validation, $lock
+
 }
+
+    
 
 
