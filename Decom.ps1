@@ -10,7 +10,7 @@ try {
 }
 
 <#=========================
-Get Credentials
+Get Credentials & VM
 ===========================#>
 
 try {
@@ -23,6 +23,22 @@ try {
     $sqlinstance = 'txadbsazu001.database.windows.net'
     $sqlDatabase = 'TIS_CMDB'
     $SqlCredential = New-Object System.Management.Automation.PSCredential ('ORRCheckSql', ((Get-AzKeyVaultSecret -vaultName "kv-308" -name 'ORRChecks-Sql').SecretValue))
+
+    Write-Host "Logging into the cloud specified in the JSON file"
+    if ($VmRF.Environment -eq 'AzureCloud') 
+    {
+        Set-AzContext -Subscription $VmRF.Subscription
+        $VM = Get-AzVM -Name $VmRF.Hostname  
+    } else {
+        Disconnect-AzAccount > $null
+        Disconnect-AzAccount > $null
+        Disconnect-AzAccount > $null
+        
+        Connect-AzAccount -Environment $VmRF.Environment -WarningAction Ignore > $null
+        Set-AzContext -Subscription $VmRF.Subscription
+
+        $VM = Get-AzVM -Name $VmRF.Hostname  
+    }
 }
 catch {
     Write-Error "Could get keys from the vault" -ErrorAction Stop
@@ -33,8 +49,7 @@ Pull ticket info from SNOW
 ====================================#>
 
 $user = "sn.datacenter.integration.user"
-$pass = "sn.datacenter.integration.user"
-#$pass = Get-AzKeyVaultSecret -VaultName "kv-308" -Name 'SNOW-API-Password' -AsPlainText
+#$pass = "sn.datacenter.integration.user"
 
 # Build auth header
 $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $user, $pass)))
@@ -112,48 +127,6 @@ $SnowInformation = ($VmRF | select 'Change_Number',
 @{n='Requestor'; e={$username}},
 @{n='Decommissioned By'; e={$fullname}},
 @{n='Date Decommissioned'; e={$todaydate}})
-
-<#===================
-Get VM Object
-=====================#>
-
-if ($VmRF.Hostname -like "*AZU*")
-{
-    Set-AzContext -Subscription $VmRF.Subscription
-    $VM = Get-AzVM -Name $VmRF.Hostname 
-} elseif ($VmRF.Hostname -like "*GOV*") {
-    # log out of commercial multiple times, occasionally it won't work for some reason
-    Disconnect-AzAccount > $null
-    Disconnect-AzAccount > $null
-    Disconnect-AzAccount > $null
-
-    try {
-        Connect-AzAccount -Environment AzureUSGovernment -WarningAction Ignore > $null
-        Set-AzContext -Subscription $VmRF.Subscription
-
-        $VM = Get-AzVM -Name $VmRF.Hostname
-    }
-    catch {
-        Write-Error "Could not login to Azure Gov Cloud" -ErrorAction Stop
-    }
-} else {
-    Write-Host "This VM does not match naming standards. Logging into the cloud specified in the JSON file"
-
-    Disconnect-AzAccount > $null
-    Disconnect-AzAccount > $null
-    Disconnect-AzAccount > $null
-
-    if ($VmRF.Environment -eq 'AzureCloud')
-    {
-        Connect-AzAccount -Environment AzureCloud -WarningAction Ignore > $null
-        Set-AzContext -Subscription $VmRF.Subscription
-        $VM = Get-AzVM -Name $VmRF.Hostname 
-    } else {
-        Connect-AzAccount -Environment AzureUSGovernment -WarningAction Ignore > $null
-        Set-AzContext -Subscription $VmRF.Subscription
-        $VM = Get-AzVM -Name $VmRF.Hostname 
-    }
-}
 
 <#==================================
 Perform the Scream Test if necessary
@@ -409,8 +382,4 @@ Write Output to database
 # $DataTable | Write-DbaDbTableData -SqlInstance $sqlinstance `
 # -Database $sqlDatabase `
 # -Table dbo.Decom `
-# -SqlCredential $SqlCredential 
-
-
-
-
+# -SqlCredential $SqlCredential
