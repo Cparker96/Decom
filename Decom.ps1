@@ -62,7 +62,7 @@ $headers.Add('Content-Type','application/json')
 
 
 # Get change request info
-$CRmeta = "https://textrontest2.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
+$CRmeta = "https://textronprod.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
 
 # Send HTTP request
 $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
@@ -73,7 +73,7 @@ $ritmarray = $ritminfo.split(' ')
 $ritmnumber = $ritmarray[3]
 
 # Get RITM info
-$ritmmeta = "https://textrontest2.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
+$ritmmeta = "https://textronprod.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
 
 # Send HTTP request
 $getritmticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $ritmmeta
@@ -84,7 +84,7 @@ $sysidmath = $getusersysid.link.Split('/')
 $usersysid = $sysidmath[7]
 
 # Get requestor info
-$usermeta = "https://textrontest2.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
+$usermeta = "https://textronprod.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
 
 # Send HTTP request
 $getuserinfo = Invoke-RestMethod -Headers $headers -Method Get -Uri $usermeta
@@ -151,7 +151,7 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     {
         # post comment to ticket for scream test update
         Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect scream test changes" -ForegroundColor Yellow
-        $screamtest_worknote_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
+        $screamtest_worknote_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
         $screamtest_worknote = "{`"work_notes`":`"Scream test has been completed.`"}"
         $screamtest_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $screamtest_worknote_url -Body $screamtest_worknote
     } else {
@@ -213,7 +213,7 @@ if (($DeleteVMObject[0].Status -eq 'Passed') -and ($DeleteVMObject[1].Status -eq
 {
     # post comment to ticket for VM resources update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect resource changes" -ForegroundColor Yellow
-    $delete_vm_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
+    $delete_vm_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
     $delete_vm_worknote = "{`"work_notes`":`"VM and associated resources have been deleted.`"}"
     $delete_vm_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_vm_url -Body $delete_vm_worknote
 } else {
@@ -237,7 +237,7 @@ if (($DeleteADObject[1].Status[0] -eq 'Passed') -and ($DeleteADObject[1].Status[
 {
     # post comment to ticket for AD object update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect AD object changes" -ForegroundColor Yellow
-    $delete_ADObject_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
+    $delete_ADObject_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
     $delete_ADObject_worknote = "{`"work_notes`":`"AD Object has been taken out.`"}"
     $delete_ADObject_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_ADObject_url -Body $delete_ADObject_worknote
 } else {
@@ -259,7 +259,7 @@ if (($UnlinkVMObject[0].Status[0] -eq 'Passed') -and ($UnlinkVMObject[0].Status[
 {
     # post comment to ticket for unlinking tenable
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect Tenable object changes" -ForegroundColor Yellow
-    $tenable_object_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
+    $tenable_object_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
     $tenable_object_worknote = "{`"work_notes`":`"Tenable object has been unlinked`"}"
     $tenable_object_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $tenable_object_url -Body $tenable_object_worknote
 } else {
