@@ -25,7 +25,8 @@ Function UnlinkVM-Tenable
     )
     [System.Collections.ArrayList]$Validation = @()
     try 
-    {
+    { 
+        Write-Host "Pulling Tenable agent info"
         # gets the agent's info
         $headers = $null
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -60,13 +61,15 @@ Function UnlinkVM-Tenable
             {
                 # then get the ID to for the endpoint
                 $agentid = $agent.id
-        
+                
+                Write-Host "Unlinking the agent"
                 #unlink the agent
                 $headers = $null
                 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
                 $targetagent = "https://cloud.tenable.com/scanners/1/agents/$($agentid)"
                 $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
                 $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
+                start-sleep -Seconds 20
         
                 if ($unlink.StatusCode -ne 200)
                 {
