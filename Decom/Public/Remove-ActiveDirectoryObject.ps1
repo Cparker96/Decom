@@ -43,6 +43,7 @@ Function Remove-ActiveDirectoryObject
 
             try 
             {
+                Write-Host "Searching for the object in AD"
                 # search for the object in AD
                 $search = Get-ADComputer -Identity $VM.Name -ErrorAction SilentlyContinue 
 
@@ -62,6 +63,7 @@ Function Remove-ActiveDirectoryObject
                     
                     try 
                     {
+                        Write-Host "Deleting the object in AD"
                         # delete the object
                         $deleteobject = Get-ADComputer -Identity $VM.Name | Remove-ADObject -Credential $cred -Confirm:$false -IncludeDeletedObjects -Recursive
 
