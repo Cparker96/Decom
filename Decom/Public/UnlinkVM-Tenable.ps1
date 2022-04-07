@@ -24,6 +24,36 @@ Function UnlinkVM-Tenable
         [parameter(Position = 2, Mandatory=$true)] [String] $TenableSecretKey
     )
     [System.Collections.ArrayList]$Validation = @()
+
+    # first I want to test and make sure the connection is good - using 902 as the test
+    try {
+        Write-Host "Testing Tenable connection"
+        # gets the agent's info
+        $headers = $null
+        $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+        $resource = "https://cloud.tenable.com/scanners/null/agents?offset=0&limit=50&sort=name:asc&wf=core_version,distro,groups,ip,name,platform,status&w=TXAINFAZU902"
+        $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
+        $testconnectionagent = (Invoke-RestMethod -Uri $resource -Method Get -Headers $headers).agents 
+
+        if ($null -ne $testconnectionagent)
+        {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Tenable Connection'
+            Status = 'Passed'
+            FriendlyError = ""
+            PsError = ''}) > $null
+        }
+    }
+    catch {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Tenable Connection'
+        Status = 'Failed'
+        FriendlyError = "Failed to establish Tenable connection. Please check your keys"
+        PsError = $PSItem.Exception}) > $null
+
+        return $Validation
+    }
+
     try 
     { 
         Write-Host "Pulling Tenable agent info"
@@ -32,19 +62,30 @@ Function UnlinkVM-Tenable
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
         $resource = "https://cloud.tenable.com/scanners/null/agents?offset=0&limit=50&sort=name:asc&wf=core_version,distro,groups,ip,name,platform,status&w=$($VM.Name)"
         $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
-        $agent = (Invoke-RestMethod -Uri $resource -Method Get -Headers $headers).agents 
-        
-        # run through a couple checks just to see what comes up
-        if (($null -eq $agent) -or ($agent.count -eq 0))
+        $agent = Invoke-RestMethod -Uri $resource -Method Get -Headers $headers
+
+        if ($agent.pagination.total -eq 0)
         {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Identify Tenable Object'
             Status = 'Skipped'
-            FriendlyError = "This agent has either been unlinked, or someone else has deleted it"
-            PsError = $PSItem.Exception}) > $null
+            FriendlyError = "This agent has either been unlinked or someone else has deleted it"
+            PsError = ''}) > $null
+        }
+    } catch {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Identify Tenable Object'
+        Status = 'Failed'
+        FriendlyError = "Failed to find agent in Tenable. Please check"
+        PsError = $PSItem.Exception}) > $null
 
-            break
-        } elseif ($agent.count -gt 1) {
+        return $validation
+    }
+
+    if ($agent.pagination.total -ne 0)
+    {
+        # run through a couple checks just to see what comes up
+        if ($agent.pagination.total -gt 1) {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Identify Tenable Object'
             Status = 'Failed'
@@ -70,7 +111,7 @@ Function UnlinkVM-Tenable
                 $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
                 $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
                 start-sleep -Seconds 20
-        
+
                 if ($unlink.StatusCode -ne 200)
                 {
                     $Validation.Add([PSCustomObject]@{System = 'Server' 
@@ -87,67 +128,17 @@ Function UnlinkVM-Tenable
 
                     return $Validation, $unlink
                 } 
-
-                # try 
-                # {
-                #     # check agent status
-                #     $headers = $null
-                #     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-                #     $resource = "https://cloud.tenable.com/scanners/null/agents?offset=0&limit=50&sort=name:asc&wf=core_version,distro,groups,ip,name,platform,status&w=$($VM.Name)"
-                #     $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
-                #     $checkagent = (Invoke-WebRequest -Uri $resource -Method Get -Headers $headers).agents     
-                # }
-                # catch {
-                #     $PSItem.Exception
-                # }
             }
             catch {
                 $Validation.Add([PSCustomObject]@{System = 'Server' 
                 Step = 'Tenable Unlink'
                 Status = 'Failed'
-                FriendlyError = "Couldn't authenticate with Tenable. Please try again"
+                FriendlyError = "Could not unlink Tenable object. Please check"
                 PsError = $PSItem.Exception}) > $null
-        
+
                 return $Validation
-            }
+            }  
         }
     }
-    catch {
-        $Validation.Add([PSCustomObject]@{System = 'Server' 
-        Step = 'Identify Tenable Object'
-        Status = 'Failed'
-        FriendlyError = "Couldn't authenticate with Tenable. Please try again"
-        PsError = $PSItem.Exception}) > $null
-
-        return $Validation
-    }
-    
     return $Validation, $unlink
 }
-
-
-
-
-### STUFF THAT I DON'T NEED TO USE RIGHT NOW BUT IS HELPFUL ####
-
-
-# lists the scanner details
-# $headers = $null
-# $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-# $resource = 'https://cloud.tenable.com/scanners/'
-# $headers.Add("X-ApiKeys", 'accessKey=70e9fff3f75648e6c891510c1807390c9e6f78c7f7d945979731d0c903eaccfd; secretKey=32922c758c81ad3323c44bdf8596221d48efb692f0f8ca374944223b7f77f269')
-# $response1 = Invoke-RestMethod -Uri $resource -Method Get -Headers $headers
-
-# lists the agent groups per scanner
-# $headers = $null
-# $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-# $resource = 'https://cloud.tenable.com/scanners/1/agent-groups'
-# $headers.Add("X-ApiKeys", 'accessKey=70e9fff3f75648e6c891510c1807390c9e6f78c7f7d945979731d0c903eaccfd; secretKey=32922c758c81ad3323c44bdf8596221d48efb692f0f8ca374944223b7f77f269')
-# $response2 = Invoke-RestMethod -Uri $resource -Method Get -Headers $headers
-
-# lists my user details
-# $headers = $null
-# $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-# $resource = 'https://cloud.tenable.com/users'
-# $headers.Add("X-ApiKeys", 'accessKey=70e9fff3f75648e6c891510c1807390c9e6f78c7f7d945979731d0c903eaccfd; secretKey=32922c758c81ad3323c44bdf8596221d48efb692f0f8ca374944223b7f77f269')
-# $response2 = Invoke-RestMethod -Uri $resource -Method Get -Headers $headers
