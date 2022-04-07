@@ -109,7 +109,7 @@ if ($VM.Count -gt 1)
     Write-Host "There are duplicate VMs with the same name. Please stop and troubleshoot which one to deallocate"
     Exit
 } else {
-    Write-Host "VM found. Proceeding with other steps..."
+    Write-Host "VM found. Proceeding with other steps..." -ForegroundColor Yellow
 }
 
 <#==================================
@@ -176,9 +176,9 @@ $getuserinfo = Invoke-RestMethod -Headers $headers -Method Get -Uri $usermeta
 # Get person who opened the request
 $username = $getuserinfo.result.name
 
-# closing change request that was opened upon RITM request
-$sctaskritmendpoint = "https://textrontest2.servicenowservices.com/api/now/table/sc_task?sysparm_query=request_item%3D$($getritmticket.result.sys_id)"
-$getsctaskno = Invoke-RestMethod -Headers $headers -Method Get -Uri $sctaskritmendpoint
+# # closing change request that was opened upon RITM request
+# $sctaskritmendpoint = "https://textrontest2.servicenowservices.com/api/now/table/sc_task?sysparm_query=request_item%3D$($getritmticket.result.sys_id)"
+# $getsctaskno = Invoke-RestMethod -Headers $headers -Method Get -Uri $sctaskritmendpoint
 
 # using staging table to make changes to SCTASK that's opened in PROD
 # $sctaskchangeendpoint = "https://textrontest2.servicenowservices.com/api/now/import/u_imp_sc_task_update"
@@ -250,95 +250,96 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     } else {
         Write-Host "Something failed in the scream test. A work note update will not be applied to the change" -ForegroundColor Yellow
     } 
+}
 
-    # update dbo.AzureDecom table with Scream test results - can't do this at the end of the script because script exits due to 2 week wait period
-    # Validation steps and status
-    [System.Collections.ArrayList]$Validation  = @()
-    $Validation += $Screamtest[2]
+# update dbo.AzureDecom table with Scream test results - can't do this at the end of the script because script exits due to 2 week wait period
+# Validation steps and status
+[System.Collections.ArrayList]$Validation  = @()
+$Validation += $Screamtest[2]
 
-    $screamtestdate = get-date -Format 'yyyy-MM-dd'
-    $sqloutputscreamtest = @{}
-    $sqloutputscreamtest = [PSCustomObject]@{Change_Number = "$($SnowInformation.Change_Number)";
-        RITM_number = "$($SnowInformation.Ticket_Number)";
-        Host_Information = "$($HostInformation | convertto-json)";
-        Azure_Information = "$($AzureInformation | convertto-json -WarningAction SilentlyContinue)";
-        SNOW_Information = "$($SnowInformation | convertto-json -WarningAction SilentlyContinue)";
-        Screamtest_Duration_Days = "$($screamtestduration)";
-        Screamtest_Status = "$($Validation | convertto-json -WarningAction SilentlyContinue)";
-        Output_Screamtest = "$($Screamtest[0,1,3] | convertto-json -WarningAction SilentlyContinue)";
-        Screamtest_Datetime = [Datetime]::ParseExact($((get-date $screamtestdate -format 'yyyy-MM-dd')), 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)}
+$screamtestdate = get-date -Format 'yyyy-MM-dd'
+$sqloutputscreamtest = @{}
+$sqloutputscreamtest = [PSCustomObject]@{Change_Number = "$($SnowInformation.Change_Number)";
+    RITM_number = "$($SnowInformation.Ticket_Number)";
+    Host_Information = "$($HostInformation | convertto-json)";
+    Azure_Information = "$($AzureInformation | convertto-json -WarningAction SilentlyContinue)";
+    SNOW_Information = "$($SnowInformation | convertto-json -WarningAction SilentlyContinue)";
+    Screamtest_Duration_Days = "$($screamtestduration)";
+    Screamtest_Status = "$($Validation | convertto-json -WarningAction SilentlyContinue)";
+    Output_Screamtest = "$($Screamtest[0,1,3] | convertto-json -WarningAction SilentlyContinue)";
+    Screamtest_Datetime = [Datetime]::ParseExact($((get-date $screamtestdate -format 'yyyy-MM-dd')), 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)}
 
-    $DataTablescreamtest = $sqloutputscreamtest | ConvertTo-DbaDataTable 
+$DataTablescreamtest = $sqloutputscreamtest | ConvertTo-DbaDataTable 
 
-    $DataTablescreamtest | Write-DbaDbTableData -SqlInstance $sqlinstance `
-    -Database $sqlDatabase `
-    -Table dbo.AzureDecom `
-    -SqlCredential $SqlCredential 
+$DataTablescreamtest | Write-DbaDbTableData -SqlInstance $sqlinstance `
+-Database $sqlDatabase `
+-Table dbo.AzureDecom `
+-SqlCredential $SqlCredential 
 
-    if (($Validation[0].Status -eq 'Passed') -and ($Validation[1].Status -eq 'Passed') -and ($Validation[2].Status -eq 'Passed'))
-    {
-        $screamtest_pass_yes = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
-        -Query "UPDATE dbo.AzureDecom `
-                SET Screamtest_Pass = 'Y' `
-                WHERE Screamtest_Datetime IS NOT NULL `
-                AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
-    } else {
-        $screamtest_pass_no = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
-        -Query "UPDATE dbo.AzureDecom `
-                SET Screamtest_Pass = 'N' `
-                WHERE Screamtest_Datetime IS NOT NULL `
-                AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
-    }
+if (($Validation[0].Status -eq 'Passed') -and ($Validation[1].Status -eq 'Passed') -and ($Validation[2].Status -eq 'Passed'))
+{
+    $screamtest_pass_yes = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
+    -Query "UPDATE dbo.AzureDecom `
+            SET Screamtest_Pass = 'Y' `
+            WHERE Screamtest_Datetime IS NOT NULL `
+            AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+} else {
+    $screamtest_pass_no = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
+    -Query "UPDATE dbo.AzureDecom `
+            SET Screamtest_Pass = 'N' `
+            WHERE Screamtest_Datetime IS NOT NULL `
+            AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+}
 
-    # only input Errors section if there are error objects
-    [System.Collections.ArrayList]$Errors  = @()
-    if ($null -ne ($Validation | where PsError -ne '' | select step, PsError | fl)){
-        $Errors += "Errors :"
-        $Errors += "============================"
-        $Errors += $Validation | where PsError -ne '' | select step, PsError | fl
-    }
+# only input Errors section if there are error objects
+[System.Collections.ArrayList]$Errors  = @()
+if ($null -ne ($Validation | where PsError -ne '' | select step, PsError | fl)){
+    $Errors += "Errors :"
+    $Errors += "============================"
+    $Errors += $Validation | where PsError -ne '' | select step, PsError | fl
+}
 
-    [System.Collections.ArrayList]$rawData  = @()
-    #Scream test - Stop VM
-    $rawData += "`r`n______Scream Test - Stop VM______"
-    $rawData += $Screamtest[1]
-    #Scream test - Tag VM
-    $rawData += "`r`n______Scream Test - Tag VM______"
-    $rawData += $Screamtest[0] 
-    #Scream test - Lock VM
-    $rawData += "`r`n______Scream Test - Lock VM______"
-    $rawData += $Screamtest[3] 
+[System.Collections.ArrayList]$rawData  = @()
+#Scream test - Stop VM
+$rawData += "`r`n______Scream Test - Stop VM______"
+$rawData += $Screamtest[1]
+#Scream test - Tag VM
+$rawData += "`r`n______Scream Test - Tag VM______"
+$rawData += $Screamtest[0] 
+#Scream test - Lock VM
+$rawData += "`r`n______Scream Test - Lock VM______"
+$rawData += $Screamtest[3] 
 
-    # format output for textfile
-    [System.Collections.ArrayList]$output = @()
-    $output += "Host Information :"
-    $output += "============================"
-    $output += $HostInformation | fl
-    $output += "Azure Information :"
-    $output += "============================"
-    $output += $EnvironmentInformation | fl
-    $output += "SNOW Information :"
-    $output += "============================"
-    $output += $SNOWInformation | fl
-    $output += "Validation Steps and Status :"
-    $output += "============================"
-    $output += $Validation | Select System, Step, Status, FriendlyError | ft
-    $output += $Errors
-    $output += "Validation Step Output :"
-    $output += "============================"
-    $output += $rawData
+# format output for textfile
+[System.Collections.ArrayList]$output = @()
+$output += "Host Information :"
+$output += "============================"
+$output += $HostInformation | fl
+$output += "Azure Information :"
+$output += "============================"
+$output += $EnvironmentInformation | fl
+$output += "SNOW Information :"
+$output += "============================"
+$output += $SNOWInformation | fl
+$output += "Validation Steps and Status :"
+$output += "============================"
+$output += $Validation | Select System, Step, Status, FriendlyError | ft
+$output += $Errors
+$output += "Validation Step Output :"
+$output += "============================"
+$output += $rawData
 
-    $filename = "$($VmRF.Hostname)_$($screamtestdate.ToString())_Scream-Test" 
+$filename = "$($VmRF.Hostname)_$($screamtestdate.ToString())_Scream-Test" 
 
-    # have to change outputrendering variable because of encoding issues - it will change back to default
-    $prevRendering = $PSStyle.OutputRendering
-    $PSStyle.OutputRendering = 'PlainText'
+# have to change outputrendering variable because of encoding issues - it will change back to default
+$prevRendering = $PSStyle.OutputRendering
+$PSStyle.OutputRendering = 'PlainText'
 
-    try {
-        $output | Out-File "C:\Temp\$($filename).txt"
-    }
-    catch {
-        $PSItem.Exception
-    } 
+try {
+    $output | Out-File "C:\Temp\$($filename).txt"
+}
+catch {
+    $PSItem.Exception
+} 
 
-    $PSStyle.OutputRendering = $prevRendering
+$PSStyle.OutputRendering = $prevRendering

@@ -111,7 +111,7 @@ if ($VM.Count -gt 1)
     Write-Host "There are duplicate VMs with the same name. Please stop and troubleshoot which one to deallocate" -ForegroundColor Yellow
     Exit
 } else {
-    Write-Host "VM found. Proceeding with other steps..."
+    Write-Host "VM found. Proceeding with other steps..." -ForegroundColor Yellow
 }
 
 <#==================================
@@ -172,9 +172,9 @@ $deltadays = $targetdate - $todaydate
 
 if ($deltadays.Days -le 0)
 {
-    Write-Host "VM can be decommissioned. Proceeding to other steps"
+    Write-Host "VM can be decommissioned. Proceeding to other steps" -ForegroundColor Yellow
 } else {
-    Write-Host "VM hasn't been scream tested for the alloted time. Please wait"
+    Write-Host "VM hasn't been scream tested for the alloted time. Please wait" -ForegroundColor Yellow
     Exit
 }
 
