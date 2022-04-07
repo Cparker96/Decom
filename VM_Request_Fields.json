@@ -1,7 +1,7 @@
 {
-    "Hostname" : "Decomtest",
+    "Hostname" : "TXAAPPAZU111",
     "Environment" : "AzureCloud",
     "Subscription" : "Enterprise",
-    "Resource_Group" : "308-Utility",
-    "Change_Number" : "CHG0031959"
+    "Resource_Group" : "306",
+    "Change_Number" : "CHG0034059"
 }
