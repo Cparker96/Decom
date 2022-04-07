@@ -8,7 +8,7 @@ Must have your Contributor role checked out over the scope of the VM you are run
 
 # Module Requirements
 * Powershell - Version Min "7.1.2"
-* Azure Module "AZ" - Version Min "5.5.0"
+* Azure Module "AZ" - Version Min "7.0.0"
 * Dbatools - Version Min "1.0.153"
 
 # Data Sources

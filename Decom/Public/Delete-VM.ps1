@@ -25,8 +25,6 @@ Function Delete-VM
     # setting variables
     [System.Collections.ArrayList]$Validation = @()
     [System.Collections.ArrayList]$resourcesdeleted = @()
-    $outstandingresources = $null
-
 
     try 
     {
@@ -107,28 +105,42 @@ Function Delete-VM
     {
         Write-Host "Deleting the OS Disk"
         $getdisk = (Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name | select Name).Name
-        # remove the OS disk
-        $removeosdisk = Remove-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $VM.StorageProfile.OsDisk.Name -Force > $null
-        start-sleep -Seconds 100
+        $getosdeleteoption = $VM.StorageProfile.OsDisk.DeleteOption
 
-        $retrievedisk = Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name
+        if ($getosdeleteoption -eq 'Detach' -or ($null -eq $getosdeleteoption))
+        {
+            # remove the OS disk
+            $removeosdisk = Remove-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $VM.StorageProfile.OsDisk.Name -Force > $null
+            start-sleep -Seconds 100
 
-        if ($null -eq $retrievedisk)
-        {   
+            $retrievedisk = Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name
+
+            if ($null -eq $retrievedisk)
+            {   
+                $Validation.Add([PSCustomObject]@{System = 'Server' 
+                Step = 'Remove OS Disk'
+                Status = 'Passed'
+                FriendlyError = ""
+                PsError = ''}) > $null
+
+                $resourcesdeleted += $getdisk
+            } else {
+                $Validation.Add([PSCustomObject]@{System = 'Server' 
+                Step = 'Remove OS Disk'
+                Status = 'Failed'
+                FriendlyError = "The OS disk was not deleted. Please check"
+                PsError = $PSItem.Exception}) > $null
+            }
+        } else {
+            Write-Host "Due to the JSON property of 'Delete' on the VM, the OS disk was deleted when the VM was deleted" -ForegroundColor Yellow
+
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Remove OS Disk'
-            Status = 'Passed'
+            Status = 'Skipped'
             FriendlyError = ""
             PsError = ''}) > $null
-
-            $resourcesdeleted += $getdisk
-        } else {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Remove OS Disk'
-            Status = 'Failed'
-            FriendlyError = "The OS disk was not deleted. Please check"
-            PsError = $PSItem.Exception}) > $null
         }
+
     } catch {
         $Validation.Add([PSCustomObject]@{System = 'Server' 
         Step = 'Remove OS Disk'
@@ -187,7 +199,7 @@ Function Delete-VM
         #Deleting associated resources
         $resources = Get-AzResource | where {($_.Name -match $VM.Name) -and (($_.ResourceType -eq 'Microsoft.Compute/disks') -or ($_.ResourceType -eq 'Microsoft.Compute/snapshots'))}
         start-sleep -Seconds 30
-        
+
         if ($resources.count -gt 0)
         {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
@@ -232,6 +244,37 @@ Function Delete-VM
     }
 
     Start-Sleep -Seconds 100
+
+    # pull remaining associated resources
+    try 
+    {
+        if ($VmRF.Hostname -like "*DBS*")
+        {
+            $tempname = $VM.Name
+            $remainingresources = Get-AzResource -Name $tempname* | where {$_.ResourceType -ne 'Microsoft.Automation/AutomationAccounts/Runbooks'} | select Name, ResourceType
+        } else {
+            $tempname = $VM.Name
+            $remainingresources = Get-AzResource -Name $tempname* | select Name, ResourceType
+        }
+    }
+    catch {
+        $PSItem.Exception
+    }
+
+    # check to see if RG is null - if it is then delete it
+    $checkrgresources = Get-AzResource -ResourceGroupName $VM.ResourceGroupName
+
+    if ($checkrgresources.Count -eq 0)
+    {
+        try {
+            Write-Host "Deleting RG since nothing is in it"
+            $deleterg = Remove-AzResourceGroup -Name $Vm.ResourceGroupName -Force > $null
+            start-sleep -Seconds 60
+        }
+        catch {
+            $PSItem.Exception
+        }  
+    }
 
     # try 
     # {
@@ -474,7 +517,7 @@ Function Delete-VM
     #     return $Validation
     # }
     # return the resources that were deleted and need a second look
-    return $Validation, $resourcesdeleted #$outstandingresources
+    return $Validation, $resourcesdeleted, $remainingresources #$outstandingresources
 }
 
 
