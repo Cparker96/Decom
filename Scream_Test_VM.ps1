@@ -342,4 +342,3 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     } 
 
     $PSStyle.OutputRendering = $prevRendering
-}
