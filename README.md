@@ -72,7 +72,7 @@ and attach to the change request.
 and attach to the change request.
 
 # Notes on Scream Test/Decom execution
-* If you receive any sort of error in the text files, you will have to rerun Scream_Test_VM.ps1 in order to meet Textron policy.
+* If you receive any sort of error in the text files, you will have to rerun Scream_Test_VM.ps1 and/or Decom.ps1 in order to meet Textron policy.
 * You may run Scream_Test_VM.ps1 as many times as you need but all fields must have 'Passed' or 'Skipped' as expected.
 * For right now, a member of the Cloud Ops team will have to manually move the change request to the 'Scheduled' state by clicking the 'Request Approval' button on the change - this ensures that the change data complies with Textron standards and can be sent to CAB for approval. 
 
