@@ -71,6 +71,20 @@ Function UnlinkVM-Tenable
             Status = 'Skipped'
             FriendlyError = "This agent has either been unlinked or someone else has deleted it"
             PsError = ''}) > $null
+        } elseif ($agent.pagination.total -gt 1) {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Identify Tenable Object'
+            Status = 'Failed'
+            FriendlyError = "There were multiple agents found with this name. Please troubleshoot which one to delete"
+            PsError = $PSItem.Exception}) > $null
+
+            Exit
+        } else {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Identify Tenable Object'
+            Status = 'Passed'
+            FriendlyError = "Tenable agent found. Unlinking..."
+            PsError = ''}) > $null
         }
     } catch {
         $Validation.Add([PSCustomObject]@{System = 'Server' 
@@ -82,63 +96,45 @@ Function UnlinkVM-Tenable
         return $validation
     }
 
-    if ($agent.pagination.total -ne 0)
+    try 
     {
-        # run through a couple checks just to see what comes up
-        if ($agent.pagination.total -gt 1) {
+        # then get the ID to for the endpoint
+        $agentid = $agent.agents.id
+        
+        Write-Host "Unlinking the agent"
+        #unlink the agent
+        $headers = $null
+        $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+        $targetagent = "https://cloud.tenable.com/scanners/1/agents/$($agentid)"
+        $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
+        $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
+        start-sleep -Seconds 20
+
+        if ($unlink.StatusCode -ne 200)
+        {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Identify Tenable Object'
+            Step = 'Tenable Unlink'
             Status = 'Failed'
-            FriendlyError = "Multiple agents were found with this server name. Please go troubleshoot"
+            FriendlyError = "Agent was not unlinked. Please try again"
             PsError = $PSItem.Exception}) > $null
-        } else {
+        } elseif ($unlink.StatusCode -eq 200) {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Identify Tenable Object'
+            Step = 'Tenable Unlink'
             Status = 'Passed'
-            FriendlyError = "Agent found. Unlinking..."
+            FriendlyError = ""
             PsError = ''}) > $null
 
-            try 
-            {
-                # then get the ID to for the endpoint
-                $agentid = $agent.id
-                
-                Write-Host "Unlinking the agent"
-                #unlink the agent
-                $headers = $null
-                $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-                $targetagent = "https://cloud.tenable.com/scanners/1/agents/$($agentid)"
-                $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
-                $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
-                start-sleep -Seconds 20
-
-                if ($unlink.StatusCode -ne 200)
-                {
-                    $Validation.Add([PSCustomObject]@{System = 'Server' 
-                    Step = 'Tenable Unlink'
-                    Status = 'Failed'
-                    FriendlyError = "Agent was not unlinked. Please try again"
-                    PsError = $PSItem.Exception}) > $null
-                } elseif ($unlink.StatusCode -eq 200) {
-                    $Validation.Add([PSCustomObject]@{System = 'Server' 
-                    Step = 'Tenable Unlink'
-                    Status = 'Passed'
-                    FriendlyError = ""
-                    PsError = ''}) > $null
-
-                    return $Validation, $unlink
-                } 
-            }
-            catch {
-                $Validation.Add([PSCustomObject]@{System = 'Server' 
-                Step = 'Tenable Unlink'
-                Status = 'Failed'
-                FriendlyError = "Could not unlink Tenable object. Please check"
-                PsError = $PSItem.Exception}) > $null
-
-                return $Validation
-            }  
-        }
+            return $Validation, $unlink
+        } 
     }
+    catch {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Tenable Unlink'
+        Status = 'Failed'
+        FriendlyError = "Could not unlink Tenable object. Please check"
+        PsError = $PSItem.Exception}) > $null
+
+        return $Validation
+    }  
     return $Validation, $unlink
 }
