@@ -1,7 +1,7 @@
 {
-    "Hostname" : "Test123",
+    "Hostname" : "Decomstate",
     "Environment" : "AzureCloud",
     "Subscription" : "Enterprise",
-    "Resource Group" : "308-Utility",
-    "Ticket Number" : "CHG0031959"
+    "Resource_Group" : "308-Utility",
+    "Change_Number" : "CHG0033202"
 }

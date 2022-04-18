@@ -24,11 +24,15 @@ Function Delete-VM
 
     # setting variables
     [System.Collections.ArrayList]$Validation = @()
-    $outstandingresources = $null
+    [System.Collections.ArrayList]$resourcesdeleted = @()
 
     try 
     {
-        Remove-AzResourceLock -LockName 'SCREAM TEST' -Scope $VM.Id -Force
+        Write-Host "Removing the scream test resource lock"
+        # removing the lock
+        Remove-AzResourceLock -LockName 'SCREAM TEST' -Scope $VM.Id -Force > $null
+        start-sleep -Seconds 60
+
         $retrievelock = get-azresourcelock -ResourceType "Microsoft.Compute/VirtualMachines" -ResourceName $VM.Name -ResourceGroupName $VM.ResourceGroupName
 
         if ($null -eq $retrievelock)
@@ -55,21 +59,149 @@ Function Delete-VM
 
         return $Validation
     }
-    
+
+    Start-Sleep -Seconds 100
+
     try 
     {
-        #Deleting VM and resources associated
-        $resources = get-azresource | where {($_.Name -match $VM.Name -and ($_.ResourceType -in 'Microsoft.Compute/disks','Microsoft.Compute/snapshots', 'Microsoft.Compute/virtualMachines', 'Microsoft.Network/networkInterfaces')) -and ($_.ResourceType -ne 'Microsoft.Compute/virtualMachines/extensions')} | select Name, ResourceId | sort -Property @{Expression="Name";Descending=$false}
-        
-        if ($null -eq $resources)
+        Write-Host "Deleting the VM"
+        $getvm = (Get-AzVM -Name $VM.Name | select Name).Name
+        # delete the VM only
+        Remove-AzVM -Name $VM.Name -ResourceGroupName $VM.ResourceGroupName -Force > $null
+        start-sleep -Seconds 100
+
+        $retrievevm = get-azvm -Name $VM.Name -ResourceGroupName $VM.ResourceGroupName -ErrorAction SilentlyContinue
+
+        if ($null -eq $retrievevm)
         {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Get Resources'
+            Step = 'Delete VM'
+            Status = 'Passed'
+            FriendlyError = ""
+            PsError = ''}) > $null
+
+            $resourcesdeleted += $getvm
+        } else {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Delete VM'
             Status = 'Failed'
-            FriendlyError = "Could not retrieve resources for $($VM.Name)"
+            FriendlyError = "The VM $($VM.Name) could not be deleted"
             PsError = $PSItem.Exception}) > $null
         }
-        else {
+    }
+    catch {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Delete Lock'
+        Status = 'Failed'
+        FriendlyError = "Could not delete VM $($VM.Name). Please check"
+        PsError = $PSItem.Exception}) > $null
+
+        return $Validation, $resourcesdeleted
+    }
+    
+    Start-Sleep -Seconds 100
+
+    try 
+    {
+        Write-Host "Deleting the OS Disk"
+        $getdisk = (Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name | select Name).Name
+        $getosdeleteoption = $VM.StorageProfile.OsDisk.DeleteOption
+
+        if ($getosdeleteoption -eq 'Detach' -or ($null -eq $getosdeleteoption))
+        {
+            # remove the OS disk
+            $removeosdisk = Remove-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $VM.StorageProfile.OsDisk.Name -Force > $null
+            start-sleep -Seconds 100
+
+            $retrievedisk = Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name
+
+            if ($null -eq $retrievedisk)
+            {   
+                $Validation.Add([PSCustomObject]@{System = 'Server' 
+                Step = 'Remove OS Disk'
+                Status = 'Passed'
+                FriendlyError = ""
+                PsError = ''}) > $null
+
+                $resourcesdeleted += $getdisk
+            } else {
+                $Validation.Add([PSCustomObject]@{System = 'Server' 
+                Step = 'Remove OS Disk'
+                Status = 'Failed'
+                FriendlyError = "The OS disk was not deleted. Please check"
+                PsError = $PSItem.Exception}) > $null
+            }
+        } else {
+            Write-Host "Due to the JSON property of 'Delete' on the VM, the OS disk was deleted when the VM was deleted" -ForegroundColor Yellow
+
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Remove OS Disk'
+            Status = 'Skipped'
+            FriendlyError = ""
+            PsError = ''}) > $null
+        }
+
+    } catch {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Remove OS Disk'
+        Status = 'Failed'
+        FriendlyError = "Could not find associated OS disk in Azure"
+        PsError = $PSItem.Exception}) > $null
+
+        return $Validation, $resourcesdeleted
+    }
+
+    start-sleep -Seconds 100
+
+    try 
+    {
+        Write-Host "Deleting the NIC"
+       # I know there is probably a better way to find this - but this is how im currently getting the nic
+       # VM JSON properties don't have any NIC names in it
+       $nicId = $VM.NetworkProfile.NetworkInterfaces.Id
+       $nicarray = $nicId.Split('/')
+       $getnic = (Get-AzNetworkInterface -ResourceGroupName $VM.ResourceGroupName -Name $nicarray[8] | select Name).Name
+       $removenic = Remove-AzNetworkInterface -Name $nicarray[8] -ResourceGroupName $VM.ResourceGroupName -Force
+       start-sleep -Seconds 100
+       $retrievenic = Get-AzNetworkInterface -Name $nicarray[8]
+
+       if ($null -eq $retrievenic)
+       {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Remove NIC'
+        Status = 'Passed'
+        FriendlyError = ""
+        PsError = ''}) > $null
+
+        $resourcesdeleted += $getnic
+       } else {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Remove NIC'
+        Status = 'Failed'
+        FriendlyError = "The NIC was not deleted. Please check"
+        PsError = $PSItem.Exception}) > $null
+       }
+    }
+    catch {
+        $Validation.Add([PSCustomObject]@{System = 'Server' 
+        Step = 'Remove NIC'
+        Status = 'Failed'
+        FriendlyError = "Could not find associated NIC in Azure"
+        PsError = $PSItem.Exception}) > $null
+
+        return $Validation, $resourcesdeleted
+    }
+
+    start-sleep -Seconds 100
+
+    try 
+    {
+        #Deleting associated resources
+        $resources = Get-AzResource | where {($_.Name -match $VM.Name) -and (($_.ResourceType -eq 'Microsoft.Compute/disks') -or ($_.ResourceType -eq 'Microsoft.Compute/snapshots'))}
+        start-sleep -Seconds 30
+
+        if ($resources.count -gt 0)
+        {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Get Resources'
             Status = 'Passed'
@@ -78,11 +210,27 @@ Function Delete-VM
 
             foreach ($resource in $resources)
             {
-                Remove-AzResource -ResourceId $resource.ResourceId -Force
+                if ($resource.ResourceType -eq 'Microsoft.Compute/disks')
+                {
+                    Write-host "Deleting any data disks"
+                    $getdatadisk = (Get-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $resource.Name | select Name).Name
+                    Remove-AzDisk -DiskName $resource.Name -ResourceGroupName $resource.ResourceGroupName -Force > $null
+                    Start-sleep -Seconds 100
+                    $resourcesdeleted += $getdatadisk
+                } elseif ($resource.ResourceType -eq 'Microsoft.Compute/snapshots') {
+                    Write-Host "Deleting any snapshots"
+                    $getsnapshot = (Get-AzSnapshot -ResourceGroupName $VM.ResourceGroupName -SnapshotName $resource.Name | select Name).Name
+                    Remove-AzSnapshot -ResourceGroupName $resource.ResourceGroupName -SnapshotName $resource.Name -Force > $null
+                    Start-Sleep -Seconds 100
+                    $resourcesdeleted += $getsnapshot
+                }
             }
-
-            # set a sleep timer for it to delete all the associated resources, Azure takes time - BE PATIENT
-            Start-Sleep -Seconds 300
+        } else {
+            $Validation.Add([PSCustomObject]@{System = 'Server' 
+            Step = 'Get Resources'
+            Status = 'Skipped'
+            FriendlyError = "There are no extra resources to delete at this time"
+            PsError = ''}) > $null
         }
     }
     catch {
@@ -92,276 +240,284 @@ Function Delete-VM
         FriendlyError = "Could not get the resources for Decom"
         PsError = $PSItem.Exception}) > $null
 
-        return $Validation
+        return $Validation, $resourcesdeleted
     }
 
+    Start-Sleep -Seconds 100
+
+    # pull remaining associated resources
     try 
     {
-        # check to make sure VM was deleted
-        $checkvm = Get-AzVM -Name $VmRF.Hostname -ResourceGroupName $VmRF.'Resource Group' -ErrorAction SilentlyContinue
-
-        if ($null -eq $checkvm)
+        if ($VmRF.Hostname -like "*DBS*")
         {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Check VM Status'
-            Status = 'Passed'
-            FriendlyError = ""
-            PsError = ''}) > $null
+            $tempname = $VM.Name
+            $remainingresources = Get-AzResource -Name $tempname* | where {$_.ResourceType -ne 'Microsoft.Automation/AutomationAccounts/Runbooks'} | select Name, ResourceType
         } else {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Check VM Status'
-            Status = 'Failed'
-            FriendlyError = "The VM $($VM.Name) was not deleted. Please check"
-            PsError = $PSItem.Exception}) > $null
-        }
-    } catch {
-        $Validation.Add([PSCustomObject]@{System = 'Server' 
-        Step = 'Check VM Status'
-        Status = 'Passed'
-        FriendlyError = ""
-        PsError = ''}) > $null
-
-        return $Validation
-    }
-
-    try 
-    {
-        # remove the OS disk
-        $removeosdisk = Remove-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $VM.StorageProfile.OsDisk.Name -Force
-
-        if ($removeosdisk.Status -eq 'Succeeded')
-        {   
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Remove OS Disk'
-            Status = 'Passed'
-            FriendlyError = ""
-            PsError = ''}) > $null
-        } else {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Remove OS Disk'
-            Status = 'Failed'
-            FriendlyError = "The OS Disk was not deleted. Please check"
-            PsError = $PSItem.Exception}) > $null
+            $tempname = $VM.Name
+            $remainingresources = Get-AzResource -Name $tempname* | select Name, ResourceType
         }
     }
     catch {
-        $Validation.Add([PSCustomObject]@{System = 'Server' 
-        Step = 'Remove OS Disk'
-        Status = 'Failed'
-        FriendlyError = "Could not find associated OS disk in Azure"
-        PsError = $PSItem.Exception}) > $null
-
-        return $Validation
+        $PSItem.Exception
     }
 
-    try 
+    # check to see if RG is null - if it is then delete it
+    $checkrgresources = Get-AzResource -ResourceGroupName $VM.ResourceGroupName
+
+    if ($checkrgresources.Count -eq 0)
     {
-        # first check to see if there are any rogue objects associated to the VM
-        $rogueobj = Get-AzResource | where-object {$_.Name -match $VM.Name}
+        try {
+            Write-Host "Deleting RG since nothing is in it"
+            $deleterg = Remove-AzResourceGroup -Name $Vm.ResourceGroupName -Force > $null
+            start-sleep -Seconds 60
+        }
+        catch {
+            $PSItem.Exception
+        }  
+    }
 
-        if ($null -eq $rogueobj)
-        {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Rogue Objects'
-            Status = 'Skipped'
-            FriendlyError = "There are no outstanding resources to be deleted"
-            PsError = ''}) > $null
-        } else {
-            $Validation.Add([PSCustomObject]@{System = 'Server' 
-            Step = 'Rogue Objects'
-            Status = 'Passed'
-            FriendlyError = "Found resources associated to the VM. Evaluating them now"
-            PsError = ''}) > $null
+    # try 
+    # {
+    #     # first check to see if there are any rogue objects associated to the VM
+    #     $rogueobj = Get-AzResource | where-object {$_.Name -match $VM.Name}
 
-            # if not null, evaulate resource type of each, perform logic based on type
-            foreach ($obj in $rogueobj)
-            {
-                if ($obj.ResourceType -eq 'Microsoft.Network/networkSecurityGroups')
-                {
-                    $nsg = Get-AzNetworkSecurityGroup -Name $obj.Name
-                    # The "!" executes the same is $null, except $null is mainly used to check vars, not properties
-                    if ((!$nsg.SecurityRules) -and (!$nsg.NetworkInterfaces) -and (!$nsg.Subnets))
-                    {
-                        $Validation.Add([PSCustomObject]@{System = 'Server' 
-                        Step = 'Locate NSG'
-                        Status = 'Skipped'
-                        FriendlyError = "This NSG isn't associated to any NICs, Vnets, etc. Deleting now..."
-                        PsError = ''}) > $null
+    #     if ($null -eq $rogueobj)
+    #     {
+    #         $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #         Step = 'Rogue Objects'
+    #         Status = 'Skipped'
+    #         FriendlyError = "There are no outstanding resources to be deleted"
+    #         PsError = ''}) > $null
+    #     } else {
+    #         $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #         Step = 'Rogue Objects'
+    #         Status = 'Passed'
+    #         FriendlyError = "Found resources associated to the VM. Evaluating them now"
+    #         PsError = ''}) > $null
+
+    #         # if not null, evaulate resource type of each, perform logic based on type
+    #         foreach ($obj in $rogueobj)
+    #         {
+    #             if ($obj.ResourceType -eq 'Microsoft.Network/networkSecurityGroups')
+    #             {
+    #                 $nsg = Get-AzNetworkSecurityGroup -Name $obj.Name
+    #                 # The "!" executes the same is $null, except $null is mainly used to check vars, not properties
+    #                 if ((!$nsg.SecurityRules) -and (!$nsg.NetworkInterfaces) -and (!$nsg.Subnets))
+    #                 {
+    #                     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                     Step = 'Locate NSG'
+    #                     Status = 'Skipped'
+    #                     FriendlyError = "This NSG isn't associated to any NICs, Vnets, etc. Deleting now..."
+    #                     PsError = ''}) > $null
     
-                        try 
-                        {
-                            Remove-AzResource -ResourceId $nsg.Id -Force
-                            $checknsg = Get-AzNetworkSecurityGroup -Name $obj.Name
+    #                     try 
+    #                     {
+    #                         Remove-AzResource -ResourceId $nsg.Id -Force
+    #                         $checknsg = Get-AzNetworkSecurityGroup -Name $obj.Name
     
-                            if ($null -eq $checknsg)
-                            {
-                                $Validation.Add([PSCustomObject]@{System = 'Server' 
-                                Step = 'Delete NSG'
-                                Status = 'Passed'
-                                FriendlyError = ""
-                                PsError = ''}) > $null
-                            } else {
-                                $Validation.Add([PSCustomObject]@{System = 'Server' 
-                                Step = 'Delete NSG'
-                                Status = 'Failed'
-                                FriendlyError = "Failed to delete NSG. Please check"
-                                PsError = $PSItem.Exception}) > $null
-                            }
-                        }
-                        catch {
-                            $Validation.Add([PSCustomObject]@{System = 'Server' 
-                            Step = 'Delete NSG'
-                            Status = 'Failed'
-                            FriendlyError = "Couldn't locate and delete NSG. Please check"
-                            PsError = $PSItem.Exception}) > $null
+    #                         if ($null -eq $checknsg)
+    #                         {
+    #                             $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                             Step = 'Delete NSG'
+    #                             Status = 'Passed'
+    #                             FriendlyError = ""
+    #                             PsError = ''}) > $null
+    #                         } else {
+    #                             $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                             Step = 'Delete NSG'
+    #                             Status = 'Failed'
+    #                             FriendlyError = "Failed to delete NSG. Please check"
+    #                             PsError = $PSItem.Exception}) > $null
+    #                         }
+    #                     }
+    #                     catch {
+    #                         $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                         Step = 'Delete NSG'
+    #                         Status = 'Failed'
+    #                         FriendlyError = "Couldn't locate and delete NSG. Please check"
+    #                         PsError = $PSItem.Exception}) > $null
     
-                            return $Validation
-                        }
-                    }
-                    else {
-                        $Validation.Add([PSCustomObject]@{System = 'Server' 
-                        Step = 'Locate NSG'
-                        Status = 'Passed'
-                        FriendlyError = "Adding this to a list of outstanding resources for now..."
-                        PsError = ''}) > $null
+    #                         return $Validation, $resourcesdeleted
+    #                     }
+    #                 }
+    #                 else {
+    #                     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                     Step = 'Locate NSG'
+    #                     Status = 'Passed'
+    #                     FriendlyError = "Adding this to a list of outstanding resources for now..."
+    #                     PsError = ''}) > $null
     
-                        $outstandingresources += $nsg.Name
-                        return $Validation
-                    }
-                }
-                elseif ($obj.ResourceType -eq 'Microsoft.Automation/automationAccounts/runbooks') {
+    #                     $outstandingresources += $nsg.Name
+    #                     return $Validation, $resourcesdeleted
+    #                 }
+    #             }
+    #             elseif ($obj.ResourceType -eq 'Microsoft.Automation/automationAccounts/runbooks') {
     
-                    $runbook = Get-AzAutomationRunbook -Name $obj.Name -ResourceGroupName $obj.ResourceGroupName -AutomationAccountName $obj.AutomationAccountName
-                    $webhooks = Get-AzAutomationWebhook -RunbookName $obj.RunbookName -ResourceGroupName $obj.ResourceGroupName -AutomationAccountName $obj.AutomationAccountName
+    #                 $runbook = Get-AzAutomationRunbook -Name $obj.Name -ResourceGroupName $obj.ResourceGroupName -AutomationAccountName $obj.AutomationAccountName
+    #                 $webhooks = Get-AzAutomationWebhook -RunbookName $obj.RunbookName -ResourceGroupName $obj.ResourceGroupName -AutomationAccountName $obj.AutomationAccountName
     
-                    # check to see if there are no jobs or webhooks assoc. to the runbook
-                    if (($runbook.JobCount -eq 0) -and ($null -eq $webhooks))
-                    {
-                        $Validation.Add([PSCustomObject]@{System = 'Server' 
-                        Step = 'Locate Automation Acct'
-                        Status = 'Skipped'
-                        FriendlyError = "This runbook has no jobs or webhooks associated with it. Deleting now..."
-                        PsError = ''}) > $null
+    #                 # check to see if there are no jobs or webhooks assoc. to the runbook
+    #                 if (($runbook.JobCount -eq 0) -and ($null -eq $webhooks))
+    #                 {
+    #                     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                     Step = 'Locate Automation Acct'
+    #                     Status = 'Skipped'
+    #                     FriendlyError = "This runbook has no jobs or webhooks associated with it. Deleting now..."
+    #                     PsError = ''}) > $null
                         
-                        try 
-                        {
-                            Remove-AzAutomationRunbook -Name $obj.Name -Force
-                            $checkrunbook = Get-AzAutomationRunbook -Name $obj.Name -ResourceGroupName $obj.ResourceGroupName -AutomationAccountName $obj.AutomationAccountName
+    #                     try 
+    #                     {
+    #                         Remove-AzAutomationRunbook -Name $obj.Name -Force
+    #                         $checkrunbook = Get-AzAutomationRunbook -Name $obj.Name -ResourceGroupName $obj.ResourceGroupName -AutomationAccountName $obj.AutomationAccountName
     
-                            if ($null -eq $checkrunbook)
-                            {
-                                $Validation.Add([PSCustomObject]@{System = 'Server' 
-                                Step = 'Delete Runbook'
-                                Status = 'Passed'
-                                FriendlyError = ""
-                                PsError = ''}) > $null
-                            } else {
-                                $Validation.Add([PSCustomObject]@{System = 'Server' 
-                                Step = 'Delete Runbook'
-                                Status = 'Failed'
-                                FriendlyError = "Failed to delete runbook. Please check"
-                                PsError = $PSItem.Exception}) > $null
-                            }
-                        }
-                        catch {
-                            $Validation.Add([PSCustomObject]@{System = 'Server' 
-                            Step = 'Delete Runbook'
-                            Status = 'Failed'
-                            FriendlyError = "Couldn't locate and delete runbook. Please check"
-                            PsError = $PSItem.Exception}) > $null
+    #                         if ($null -eq $checkrunbook)
+    #                         {
+    #                             $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                             Step = 'Delete Runbook'
+    #                             Status = 'Passed'
+    #                             FriendlyError = ""
+    #                             PsError = ''}) > $null
+    #                         } else {
+    #                             $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                             Step = 'Delete Runbook'
+    #                             Status = 'Failed'
+    #                             FriendlyError = "Failed to delete runbook. Please check"
+    #                             PsError = $PSItem.Exception}) > $null
+    #                         }
+    #                     }
+    #                     catch {
+    #                         $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                         Step = 'Delete Runbook'
+    #                         Status = 'Failed'
+    #                         FriendlyError = "Couldn't locate and delete runbook. Please check"
+    #                         PsError = $PSItem.Exception}) > $null
     
-                            return $Validation
-                        }
-                    }
-                    else {
-                        $Validation.Add([PSCustomObject]@{System = 'Server' 
-                        Step = 'Locate Runbook'
-                        Status = 'Passed'
-                        FriendlyError = "Adding this to a list of outstanding resources for now..."
-                        PsError = ''}) > $null
+    #                         return $Validation, $resourcesdeleted
+    #                     }
+    #                 }
+    #                 else {
+    #                     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                     Step = 'Locate Runbook'
+    #                     Status = 'Passed'
+    #                     FriendlyError = "Adding this to a list of outstanding resources for now..."
+    #                     PsError = ''}) > $null
     
-                        $outstandingresources += $runbook.Name
-                        return $Validation
-                    }
-                } elseif ($obj.ResourceType -eq 'Microsoft.Storage/storageAccounts') {
-                    # checking to see if there are any containers, queues, etc. assoc. with the storage account
-                    $storageAcc = Get-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name
-                    $ctx = $storageAcc.Context
-                    $containers = Get-AzStorageContainer -Context $ctx | where {$_.Name -notlike "*vhds*"}
-                    $fileshares = Get-AzStorageShare -Context $ctx
+    #                     $outstandingresources += $runbook.Name
+    #                     return $Validation, $resourcesdeleted
+    #                 }
+    #             } elseif ($obj.ResourceType -eq 'Microsoft.Storage/storageAccounts') {
+    #                 # checking to see if there are any containers, queues, etc. assoc. with the storage account
+    #                 $storageAcc = Get-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name
+    #                 $ctx = $storageAcc.Context
+    #                 $containers = Get-AzStorageContainer -Context $ctx | where {$_.Name -notlike "*vhds*"}
+    #                 $fileshares = Get-AzStorageShare -Context $ctx
     
-                    if (($null -eq $containers) -and ($null -eq $fileshares))
-                    {
-                        $Validation.Add([PSCustomObject]@{System = 'Server' 
-                        Step = 'Locate Storage Acct'
-                        Status = 'Skipped'
-                        FriendlyError = "This storage account is empty. Deleting now..."
-                        PsError = ''}) > $null
+    #                 if (($null -eq $containers) -and ($null -eq $fileshares))
+    #                 {
+    #                     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                     Step = 'Locate Storage Acct'
+    #                     Status = 'Skipped'
+    #                     FriendlyError = "This storage account is empty. Deleting now..."
+    #                     PsError = ''}) > $null
     
-                        try 
-                        {
-                            Remove-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name -Force
-                            $checkstorageacct = Get-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name
+    #                     try 
+    #                     {
+    #                         Remove-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name -Force
+    #                         $checkstorageacct = Get-AzStorageAccount -ResourceGroupName $obj.ResourceGroupName -Name $obj.Name
     
-                            if ($null -eq $checkstorageacct)
-                            {
-                                $Validation.Add([PSCustomObject]@{System = 'Server' 
-                                Step = 'Delete Storage Acct'
-                                Status = 'Passed'
-                                FriendlyError = ""
-                                PsError = ''}) > $null
-                            } else {
-                                $Validation.Add([PSCustomObject]@{System = 'Server' 
-                                Step = 'Delete Storage Acct'
-                                Status = 'Failed'
-                                FriendlyError = "Failed to delete storage account. Please check"
-                                PsError = $PSItem.Exception}) > $null
-                            }
-                        }
-                        catch {
-                            $Validation.Add([PSCustomObject]@{System = 'Server' 
-                            Step = 'Delete Storage Acct'
-                            Status = 'Failed'
-                            FriendlyError = "Couldn't locate and delete storage account. Please check"
-                            PsError = $PSItem.Exception}) > $null
+    #                         if ($null -eq $checkstorageacct)
+    #                         {
+    #                             $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                             Step = 'Delete Storage Acct'
+    #                             Status = 'Passed'
+    #                             FriendlyError = ""
+    #                             PsError = ''}) > $null
+    #                         } else {
+    #                             $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                             Step = 'Delete Storage Acct'
+    #                             Status = 'Failed'
+    #                             FriendlyError = "Failed to delete storage account. Please check"
+    #                             PsError = $PSItem.Exception}) > $null
+    #                         }
+    #                     }
+    #                     catch {
+    #                         $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                         Step = 'Delete Storage Acct'
+    #                         Status = 'Failed'
+    #                         FriendlyError = "Couldn't locate and delete storage account. Please check"
+    #                         PsError = $PSItem.Exception}) > $null
     
-                            return $Validation
-                        }
-                    }
-                    else {
-                        $Validation.Add([PSCustomObject]@{System = 'Server' 
-                        Step = 'Locate Storage Acct'
-                        Status = 'Passed'
-                        FriendlyError = "Adding this to a list of outstanding resources for now..."
-                        PsError = ''}) > $null
+    #                         return $Validation, $resourcesdeleted
+    #                     }
+    #                 }
+    #                 else {
+    #                     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                     Step = 'Locate Storage Acct'
+    #                     Status = 'Passed'
+    #                     FriendlyError = "Adding this to a list of outstanding resources for now..."
+    #                     PsError = ''}) > $null
     
-                        $outstandingresources += $storageAcc.StorageAccountName
-                        return $Validation
-                    }
-                } else {
-                    $Validation.Add([PSCustomObject]@{System = 'Server' 
-                    Step = 'Locate Storage Acct'
-                    Status = 'Passed'
-                    FriendlyError = "This resource does not match any of the rogue resource types and should be reviewed by the requestor to ensure safe deletion"
-                    PsError = ''}) > $null
+    #                     $outstandingresources += $storageAcc.StorageAccountName
+    #                     return $Validation, $resourcesdeleted
+    #                 }
+    #             } else {
+    #                 $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #                 Step = 'Locate Storage Acct'
+    #                 Status = 'Passed'
+    #                 FriendlyError = "This resource does not match any of the rogue resource types and should be reviewed by the requestor to ensure safe deletion"
+    #                 PsError = ''}) > $null
     
-                    $outstandingresources += $obj.Name
-                    return $Validation
-                }
-            }
-        }
-    }
-    catch {
-        $Validation.Add([PSCustomObject]@{System = 'Server' 
-        Step = 'Rogue Objects'
-        Status = 'Failed'
-        FriendlyError = "Could not pull any objects associated to the VM. Please check"
-        PsError = $PSItem.Exception}) > $null
+    #                 $outstandingresources += $obj.Name
+    #                 return $Validation, $resourcesdeleted
+    #             }
+    #         }
+    #     }
+    # }
+    # catch {
+    #     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #     Step = 'Rogue Objects'
+    #     Status = 'Failed'
+    #     FriendlyError = "Could not pull any objects associated to the VM. Please check"
+    #     PsError = $PSItem.Exception}) > $null
 
-        return $Validation
-    }
-    # return the resources that need a second look
-    return $outstandingresources
+    #     return $Validation, $resourcesdeleted, $outstandingresources
+    # }
+
+    # try 
+    # {
+    #     Write-Host "Checking to see if RG still has resources in it"
+    #     # check to see if RG is null - if it is, delete it
+    #     $getRGresources = Get-AzResource -ResourceGroupName $VM.ResourceGroupName  
+
+    #     if ($null -eq $getRGresources)
+    #     {
+    #         Remove-AzResourceGroup -Name $VM.ResourceGroupName -Force
+    #         start-sleep -seconds 30
+
+    #         $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #         Step = 'Remove RG'
+    #         Status = 'Passed'
+    #         FriendlyError = ""
+    #         PsError = ''}) > $null
+    #     } else {
+    #         $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #         Step = 'Remove RG'
+    #         Status = 'Skipped'
+    #         FriendlyError = "Resource group $($VM.ResourceGroupName) still has resources, it won't be deleted"
+    #         PsError = $PSItem.Exception}) > $null
+    #     }
+    # }
+    # catch {
+    #     $Validation.Add([PSCustomObject]@{System = 'Server' 
+    #     Step = 'Remove RG'
+    #     Status = 'Failed'
+    #     FriendlyError = "Failed to fetch resources in resource group $($VM.ResourceGroupName)"
+    #     PsError = $PSItem.Exception}) > $null
+
+    #     return $Validation
+    # }
+    # return the resources that were deleted and need a second look
+    return $Validation, $resourcesdeleted, $remainingresources #$outstandingresources
 }
 
 
