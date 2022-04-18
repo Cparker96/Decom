@@ -119,7 +119,8 @@ Pull ticket info from SNOW
 ====================================#>
 
 $user = "sn.datacenter.integration.user"
-$pass = "sn.datacenter.integration.user"
+#$pass = "sn.datacenter.integration.user"
+$pass = $prodpass
 
 # Build auth header
 $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $user, $pass)))
@@ -131,7 +132,7 @@ $headers.Add('Accept','application/json')
 $headers.Add('Content-Type','application/json')
 
 # Get change request info
-$CRmeta = "https://textrontest2.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
+$CRmeta = "https://textronprod.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
 $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
 $findservernameinchange = $getCRticket.result.short_description.split(': ')
@@ -145,7 +146,7 @@ if (($getCRticket.result.number -eq $VmRF.Change_Number) -and ($findservernamein
 }
 
 # check to see if change request is in scheduled state
-$crticketendpoint = "https://textrontest2.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+$crticketendpoint = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
 $checkstate = Invoke-RestMethod -Headers $headers -Method Get -Uri $crticketendpoint
 
 if ($checkstate.result.state.display_value -ne 'Scheduled')
@@ -184,7 +185,7 @@ $ritmarray = $ritminfo.split(' ')
 $ritmnumber = $ritmarray[3]
 
 # Get RITM info
-$ritmmeta = "https://textrontest2.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
+$ritmmeta = "https://textronprod.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
 $getritmticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $ritmmeta
 
 # do RITM math to get user sys id
@@ -193,7 +194,7 @@ $sysidmath = $getusersysid.link.Split('/')
 $usersysid = $sysidmath[7]
 
 # Get requestor info
-$usermeta = "https://textrontest2.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
+$usermeta = "https://textronprod.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
 $getuserinfo = Invoke-RestMethod -Headers $headers -Method Get -Uri $usermeta
 
 # Get person who opened the request
@@ -249,7 +250,7 @@ if (($DeleteVMObject[0].Status[0] -eq 'Passed') -and ($DeleteVMObject[0].Status[
 {
     # post comment to ticket for VM resources update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect resource changes" -ForegroundColor Yellow
-    $delete_vm_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $delete_vm_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
     $delete_vm_worknote = "{`"work_notes`":`"VM and associated resources have been deleted.`"}"
     $delete_vm_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_vm_url -Body $delete_vm_worknote
 } else {
@@ -271,13 +272,13 @@ if (($DeleteADObject[0].Status -eq 'Passed') -and ($DeleteADObject[1].Status -eq
 {
     # post comment to ticket for AD object update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect AD object changes" -ForegroundColor Yellow
-    $delete_ADObject_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $delete_ADObject_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
     $delete_ADObject_worknote = "{`"work_notes`":`"No AD object was found. It either didn't exist or someone prior to this operation deleteed it.`"}"
     $delete_ADObject_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_ADObject_url -Body $delete_ADObject_worknote
 } elseif (($DeleteADObject[0].Status -eq 'Passed') -and ($DeleteADObject[1].Status -eq 'Passed') -and ($DeleteADObject[2].Status -eq 'Passed')) {
     # post comment to ticket for AD object update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect AD object changes" -ForegroundColor Yellow
-    $delete_ADObject_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $delete_ADObject_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
     $delete_ADObject_worknote = "{`"work_notes`":`"AD Object has been taken out.`"}"
     $delete_ADObject_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_ADObject_url -Body $delete_ADObject_worknote
 } 
@@ -300,13 +301,13 @@ if (($UnlinkVMObject[0][0].Status -eq 'Passed') -and ($UnlinkVMObject[0][1].Stat
 {
     # post comment to ticket for unlinking tenable
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect Tenable object changes" -ForegroundColor Yellow
-    $tenable_object_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $tenable_object_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
     $tenable_object_worknote = "{`"work_notes`":`"Connection established, but no Tenable object found. Someone else has already deleted it.`"}"
     $tenable_object_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $tenable_object_url -Body $tenable_object_worknote
 } elseif (($UnlinkVMObject[0][0].Status -eq 'Passed') -and ($UnlinkVMObject[0][1].Status -eq 'Passed') -and ($UnlinkVMObject[0][2].Status -eq 'Passed')) {
     # post comment to ticket for unlinking tenable
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect Tenable object changes" -ForegroundColor Yellow
-    $tenable_object_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $tenable_object_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
     $tenable_object_worknote = "{`"work_notes`":`"Tenable object successfully deleted.`"}"
     $tenable_object_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $tenable_object_url -Body $tenable_object_worknote
 }
@@ -422,19 +423,19 @@ Updating/Closing SNOW Change Request
 
 # moving change request to Implement state
 Write-Host "Moving $($VmRF.Change_Number) to Implement state"
-$changeimplement = "https://textrontest2.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+$changeimplement = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
 $changeimplementbody = "{`"state`":`"-1`"}"
 $movechangetoimplement = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changeimplement -Body $changeimplementbody
 Start-Sleep -Seconds 15
 
 # fetching and closing all change tasks
 Write-Host "Closing all change tasks related to $($VmRF.Change_Number)"
-$changetasks ="https://textrontest2.servicenowservices.com/api/now/table/change_task?sysparm_query=change_request.number%3D$($getCRticket.result.number)^state=1"
+$changetasks ="https://textronprod.servicenowservices.com/api/now/table/change_task?sysparm_query=change_request.number%3D$($getCRticket.result.number)^state=1"
 $getchangetasks = Invoke-RestMethod -Headers $headers -Method Get -Uri $changetasks
 
 foreach ($changetask in $getchangetasks.result.sys_id)
 {
-    $changetaskendpoint ="https://textrontest2.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)/task/$($changetask)"
+    $changetaskendpoint ="https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)/task/$($changetask)"
     $changetaskbody = "{`"state`":`"3`"}"
     $closechangestasks = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changetaskendpoint -Body $changetaskbody
 }
@@ -444,13 +445,13 @@ if ($delta.days -lt 0)
 { 
     # Closing change request with issues
     Write-Host "Moving $($VmRF.Change_Number) to Closed state"
-    $changeclosed = "https://textrontest2.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+    $changeclosed = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
     $changeclosedbody ="{`"close_code`":`"successful_issues`",`"close_notes`":`"Resources were deleted outside of change window.`",`"state`":`"3`"}"
     $movechangetoclosed = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changeclosed -Body $changeclosedbody
 } else {
     # Closing change request
     Write-Host "Moving $($VmRF.Change_Number) to Closed state"
-    $changeclosed = "https://textrontest2.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+    $changeclosed = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
     $changeclosedbody ="{`"close_code`":`"successful`",`"close_notes`":`"Closed complete.`",`"state`":`"3`"}"
     $movechangetoclosed = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changeclosed -Body $changeclosedbody
 }
