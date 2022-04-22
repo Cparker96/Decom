@@ -54,6 +54,8 @@ get-module Decom
 ```
 4. Upload the text file in your temp drive named SERVERNAME_yyyy-MM-dd.HH.mm_(Scream-Test/Decom).txt to the SNOW ticket once all steps have correctly passed. 
 
+***NOTE*** PLEASE DO NOT MOVE THE CHANGE REQUEST INTO A DIFFERENT STATE THAN WHAT IT SHOULD BE IN (SCHEDULED). THE SCRIPT WILL MANAGE THE STATE
+
 # Scream Test Process (*Assuming a normal scream test*)
 1. A "Decommission a Server" request is submitted via SNOW Service Portal through a requestor. The ticket is assigned to a vendor technician.
 2. A change request is created through a SNOW automation workflow. 

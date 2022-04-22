@@ -19,7 +19,8 @@ Function Delete-VM
 {
     Param
     (
-        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM
+        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
+        [parameter(Position = 0, Mandatory=$true)] [String] $VmRF
     )
 
     # setting variables
