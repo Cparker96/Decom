@@ -20,11 +20,11 @@ Function Scream_Test
     Param
     (
         [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
-        [parameter(Position = 1, Mandatory=$true)] [String] $VmRF
+        [parameter(Position = 0, Mandatory=$true)] $VmRF
     )
 
     [System.Collections.ArrayList]$Validation = @() 
-    $tag = @{Decom="Scream Test $($VmRF.Change_Number)"}
+    $tag = @{Decom="Scream Test - $($VmRF.Change_Number)"}
 
     # check to see if the VM is a domain controller first
     if ($VmRF.Hostname -like "*IDC*") 
