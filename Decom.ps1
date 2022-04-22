@@ -103,7 +103,8 @@ try {
     Write-Host "Retrieving the VM"
     $VM = Get-AzVM -Name $VmRF.Hostname -ResourceGroupName $VmRF.Resource_Group -ErrorAction Stop
 } catch {
-    $PSItem.Exception
+    Write-Host "Could not find $($VmRF.Hostname) in the subscription/RG mentioned" -ForegroundColor Red
+    Exit
 }
 
 if ($VM.Count -gt 1)
@@ -139,7 +140,7 @@ $findservernameinchange = $getCRticket.result.short_description.split(': ')
 
 if (($getCRticket.result.number -eq $VmRF.Change_Number) -and ($findservernameinchange[1] -eq $VM.Name))
 {
-    Write-Host "Change request numbers match - proceeding to other steps..." -ForegroundColor Yellow
+    Write-Host "Change request numbers match for $($VmRF.Change_Number) - proceeding to other steps..." -ForegroundColor Yellow
 } else {
     Write-Host "Change request specified in the JSON file does not match what was pulled. Please troubleshoot" -ForegroundColor Yellow
     Exit
@@ -204,7 +205,7 @@ $username = $getuserinfo.result.name
 Any other miscellaneous info 
 ================================#>
 
-$cred = Get-Credential -Message "Please enter your administrator credentials (username _a@txt.textron.com) and your ERPM password:"
+$cred = Get-Credential -Message "Please enter your administrator credentials (Ex: user_a) and your ERPM password:"
 $usersearch = Get-AdUser -Identity $cred.UserName
 $fullname = $usersearch.GivenName + ' ' + $usersearch.Surname
 
@@ -300,13 +301,13 @@ $UnlinkVMObject
 if (($UnlinkVMObject[0][0].Status -eq 'Passed') -and ($UnlinkVMObject[0][1].Status -eq 'Skipped'))
 {
     # post comment to ticket for unlinking tenable
-    Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect Tenable object changes" -ForegroundColor Yellow
+    Write-Host "Updating Change Request $($VmRF.Change_Number) to reflect Tenable object changes" -ForegroundColor Yellow
     $tenable_object_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
     $tenable_object_worknote = "{`"work_notes`":`"Connection established, but no Tenable object found. Someone else has already deleted it.`"}"
     $tenable_object_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $tenable_object_url -Body $tenable_object_worknote
 } elseif (($UnlinkVMObject[0][0].Status -eq 'Passed') -and ($UnlinkVMObject[0][1].Status -eq 'Passed') -and ($UnlinkVMObject[0][2].Status -eq 'Passed')) {
     # post comment to ticket for unlinking tenable
-    Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect Tenable object changes" -ForegroundColor Yellow
+    Write-Host "Updating Change Request $($VmRF.Change_Number) to reflect Tenable object changes" -ForegroundColor Yellow
     $tenable_object_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
     $tenable_object_worknote = "{`"work_notes`":`"Tenable object successfully deleted.`"}"
     $tenable_object_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $tenable_object_url -Body $tenable_object_worknote
