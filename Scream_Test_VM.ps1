@@ -178,15 +178,6 @@ $getuserinfo = Invoke-RestMethod -Headers $headers -Method Get -Uri $usermeta
 # Get person who opened the request
 $username = $getuserinfo.result.name
 
-# # closing change request that was opened upon RITM request
-# $sctaskritmendpoint = "https://textronprod.servicenowservices.com/api/now/table/sc_task?sysparm_query=request_item%3D$($getritmticket.result.sys_id)"
-# $getsctaskno = Invoke-RestMethod -Headers $headers -Method Get -Uri $sctaskritmendpoint
-
-# using staging table to make changes to SCTASK that's opened in PROD
-# $sctaskchangeendpoint = "https://textronprod.servicenowservices.com/api/now/import/u_imp_sc_task_update"
-# $sctaskchangebody = "{`"u_sys_id`":`"$($getsctaskno.result.sys_id)`",`"u_work_notes`":`"`",`"u_state`":`"3`"}"
-# $closesctaskchange = Invoke-RestMethod -Headers $headers -Method Post -Uri $sctaskchangeendpoint -Body $sctaskchangebody
-
 <#==============================
 Any other miscellaneous info 
 ================================#>
@@ -237,7 +228,7 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     Exit
 } else {
     Write-host "Starting scream test for $($VM.Name)" -ForegroundColor Yellow
-    $Screamtest = Scream_Test -VM $VM
+    $Screamtest = Scream_Test -VM $VM -VmRF $VmRF
     $Screamtest
 
     # this will search the properties of each obj in $screamtest[2..4] array

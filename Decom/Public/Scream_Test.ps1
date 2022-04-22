@@ -19,7 +19,8 @@ Function Scream_Test
 {
     Param
     (
-        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM
+        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
+        [parameter(Position = 1, Mandatory=$true)] [String] $VmRF
     )
 
     [System.Collections.ArrayList]$Validation = @() 
@@ -111,7 +112,7 @@ Function Scream_Test
         # put a resource lock on the VM
         $newlock = New-AzResourceLock `
         -LockName 'SCREAM TEST' `
-        -LockLevel CanNotDelete `
+        -LockLevel ReadOnly `
         -Scope $VM.Id `
         -Force `
         -LockNotes "This VM is under scream test from change $($VmRF.Change_Number). Contact CloudOperations@Textron.com for status"
