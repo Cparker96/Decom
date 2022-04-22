@@ -101,12 +101,13 @@ try {
     Write-Host "Retrieving the VM"
     $VM = Get-AzVM -Name $VmRF.Hostname -ResourceGroupName $VmRF.Resource_Group -ErrorAction Stop
 } catch {
-    $PSItem.Exception
+    Write-Host "Could not find $($VmRF.Hostname) in the subscription/RG mentioned" -ForegroundColor Red
+    Exit
 }
 
 if ($VM.Count -gt 1)
 {
-    Write-Host "There are duplicate VMs with the same name. Please stop and troubleshoot which one to deallocate"
+    Write-Host "There are duplicate VMs with the same name. Please stop and troubleshoot which one to deallocate" -ForegroundColor Yellow   
     Exit
 } else {
     Write-Host "VM found. Proceeding with other steps..." -ForegroundColor Yellow
