@@ -1,7 +1,7 @@
 {
-    "Hostname" : "Decomtest",
+    "Hostname" : "TXKAPPAZU064",
     "Environment" : "AzureCloud",
-    "Subscription" : "Enterprise",
-    "Resource_Group" : "308-Utility",
-    "Change_Number" : "CHG0034113"
+    "Subscription" : "Kautex",
+    "Resource_Group" : "MANU-EAM-PROD",
+    "Change_Number" : "CHG0034377"
 }

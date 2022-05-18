@@ -241,7 +241,7 @@ Decom the machine
 
 Write-Host "Deleting the VM and its associated resources" -ForegroundColor Yellow
 
-$DeleteVMObject = Delete-VM -VM $VM
+$DeleteVMObject = Delete-VM -VM $VM -VmRF $VmRF
 $DeleteVMObject
 
 # this will search the properties of each obj in $DeleteVMObject array
