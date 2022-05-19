@@ -19,8 +19,7 @@ Function Delete-VM
 {
     Param
     (
-        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
-        [parameter(Position = 0, Mandatory=$true)] $VmRF
+        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM
     )
 
     # setting variables
@@ -250,7 +249,7 @@ Function Delete-VM
     # pull remaining associated resources
     try 
     {
-        if ($VmRF.Hostname -like "*DBS*")
+        if ($VM.Name -like "*DBS*")
         {
             $tempname = $VM.Name
             $remainingresources = Get-AzResource -Name $tempname* | where {$_.ResourceType -ne 'Microsoft.Automation/AutomationAccounts/Runbooks'} | select Name, ResourceType
@@ -264,12 +263,12 @@ Function Delete-VM
     }
 
     # check to see if RG is null - if it is then delete it
-    $checkrgresources = Get-AzResource -ResourceGroupName $VmRF.ResourceGroupName
+    $checkrgresources = Get-AzResource -ResourceGroupName $VM.ResourceGroupName
 
     if ($checkrgresources.Count -eq 0)
     {
         try {
-            Write-Host "Deleting RG $($VmRF.ResourceGroupName) since nothing is in it"
+            Write-Host "Deleting RG $($VM.ResourceGroupName) since nothing is in it"
             $deleterg = Remove-AzResourceGroup -Name $VM.ResourceGroupName -Force > $null
             start-sleep -Seconds 60
         }
