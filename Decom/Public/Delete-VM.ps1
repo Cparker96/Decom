@@ -270,7 +270,7 @@ Function Delete-VM
     {
         try {
             Write-Host "Deleting RG $($VmRF.ResourceGroupName) since nothing is in it"
-            $deleterg = Remove-AzResourceGroup -Name $VmRF.ResourceGroupName -Force > $null
+            $deleterg = Remove-AzResourceGroup -Name $VM.ResourceGroupName -Force > $null
             start-sleep -Seconds 60
         }
         catch {

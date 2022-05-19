@@ -320,6 +320,7 @@ else {
 Formulate Output
 ===================================#>
 
+[System.Collections.ArrayList]$Validation = @()
 $Validation += $DeleteVMObject[0] 
 $Validation += $DeleteVMObject[1]
 $Validation += $DeleteADObject[1]
@@ -335,7 +336,7 @@ if ($null -ne ($Validation | where PsError -ne '' | select step, PsError | fl))
 }
 
 # get the raw data as proof
-[System.Collections.ArrayList]$rawData  = @()
+[System.Collections.ArrayList]$rawData = @()
 #Delete VM
 $rawData += "`r`n______Delete VM______"
 $rawData += $DeleteVMObject[0] 

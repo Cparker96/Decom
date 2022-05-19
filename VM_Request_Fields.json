@@ -1,7 +1,7 @@
 {
-    "Hostname" : "TXKAPPAZU064",
+    "Hostname" : "Test123",
     "Environment" : "AzureCloud",
-    "Subscription" : "Kautex",
-    "Resource_Group" : "MANU-EAM-PROD",
+    "Subscription" : "Enterprise",
+    "Resource_Group" : "308-Utility",
     "Change_Number" : "CHG0034377"
 }
