@@ -1,7 +1,7 @@
 {
-    "Hostname" : "Test123",
+    "Hostname" : "TXEDBSAZU013",
     "Environment" : "AzureCloud",
-    "Subscription" : "Enterprise",
-    "Resource_Group" : "308-Utility",
-    "Change_Number" : "CHG0034377"
+    "Subscription" : "TSV",
+    "Resource_Group" : "BI-ASAPReplication-Prod",
+    "Change_Number" : "CHG0034448"
 }

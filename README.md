@@ -43,6 +43,8 @@ get-module Decom
 # Running the Script
 1. Make sure you are in the root directory for the Decom folder.
 2. Update and save the values for VM_Request_Fields.json using valid JSON syntax. 
+    - If your server lives in the old Azure Gov environment (not GCC), please specify in the 'Environment' field of the JSON of a value of "AzureUSGovernment_Old"
+    - If your server lives in the new Azure GCC-HI environment, please specify in the 'Environment' field of the JSON of a value of "AzureUSGovernment"
 3. Run Scream_Test_VM.ps1 and Decom.ps1 by . sourcing the file while in the correct working directory.
 
 ```powershell
@@ -77,6 +79,7 @@ and attach to the change request.
 * If you receive any sort of error in the text files, you will have to rerun Scream_Test_VM.ps1 and/or Decom.ps1 in order to meet Textron policy.
 * You may run Scream_Test_VM.ps1 as many times as you need but all fields must have 'Passed' or 'Skipped' as expected.
 * For right now, a member of the Cloud Ops team will have to manually move the change request to the 'Scheduled' state by clicking the 'Request Approval' button on the change - this ensures that the change data complies with Textron standards and can be sent to CAB for approval. 
+
 
 # Need help?
 If there are any questions please reach out to CloudOps@Textron.com via email with the textfile output, Server Name, Ticket Number, and Timestamp of the run you are having trouble with. 
