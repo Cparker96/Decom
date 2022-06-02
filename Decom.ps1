@@ -172,6 +172,12 @@ $todaydate = get-date
 $targetdate = $retrievescreamtestdate.Screamtest_Datetime.AddDays($screamtestduration)
 $deltadays = $targetdate - $todaydate
 
+if ($null -eq $targetdate)
+{
+    Write-Host "This VM hasn't ran through a proper scream test. Please run 'Scream_Test_VM.ps1' first" -ForegroundColor Yellow -ErrorAction Stop
+    Exit
+}
+
 if ($deltadays.Days -le 0)
 {
     Write-Host "VM can be decommissioned. Proceeding to other steps" -ForegroundColor Yellow
