@@ -85,7 +85,7 @@ if ($VmRF.Environment -eq 'AzureCloud')
     try 
     {
         Write-Host "Logging into Old Gov Cloud" -ForegroundColor Yellow
-        Connect-AzAccount -ServicePrincipal -Tenant $govtenantid -Environment $VmRF.Environment -Credential $govappregcredential -WarningAction Ignore > $null
+        Connect-AzAccount -ServicePrincipal -Tenant $govtenantid -Environment 'AzureUSGovernment' -Credential $govappregcredential -WarningAction Ignore > $null
         Set-AzContext -Subscription $VmRF.Subscription  
     }
     catch {
