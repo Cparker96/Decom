@@ -1,7 +1,7 @@
 {
-    "Hostname" : "TXEDBSAZU013",
+    "Hostname" : "TXKDBSAZU043",
     "Environment" : "AzureCloud",
-    "Subscription" : "TSV",
-    "Resource_Group" : "BI-ASAPReplication-Prod",
-    "Change_Number" : "CHG0034448"
+    "Subscription" : "Kautex",
+    "Resource_Group" : "MANU-PTC-PROD",
+    "Change_Number" : "CHG0034903"
 }
