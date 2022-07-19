@@ -10,7 +10,7 @@ The Decom module is to be utilized by either a member of the Cloud Operations Te
 
 Once scream testing has completed, they will then perform the actual deletion of the VM and related resources using the Decom.ps1 file. This script will delete the VM and its associated resources which include the VM object, the OS disk, data disks attached to the VM, snapshots that have been taken of the OS disk, as well as other resources that could be tied to it such as storage accounts, availability sets, etc. 
 
-It will also authenticate with Active Directory, attempt to find the computer object, and take the object out of the domain. The same actions will be taken with our vulnerability scanning tool. 
+It will also authenticate with Active Directory, attempt to find the computer object, and delete the object from the domain. The same actions will be taken with our vulnerability scanning tool. 
 
 Once all resources have been deleted and all external objects have been unlinked, there will be a .txt file of both the results of the scream test and programmtic deletion process that will get created in the localhost's C:Temp directory. They will attach the results to the change ticket, along with any special work notes that they may need to apply depending on the outcome. The information in these text files will contain the raw output of each step along with a Pass/Fail state for visibility. 
 
