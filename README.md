@@ -12,9 +12,17 @@ Once all resources have been deleted and all external objects have been unlinked
 
 <h2>Usage</h2>
 
-1. Open an IDE of your choice with the parent Decom folder, fill out the VM_Request_Fields.json file with server metadata and save it
-2. Load the custom powershell module into your session (import-module .\Decom\)
-3. The Scream_Test_VM.ps1 file will be executed immediately after the change ticket gets approved. The Decom.ps1 file will be executed the next day after the scream test is deemed "passed" after a minimum of 14 calendar days (teams can request longer if needed). Both scripts will produce an output .txt file that located in the C:\Temp path. 
+1. Open a code editor of your choice with the parent ORR_Checks folder
+2. Fill out the VM_Request_Fields.json file with server metadata and save it
+3. Make sure you don't have a copy of a previous version of the module and its contents
+```powershell
+get-module Decom | remove-module
+```
+4. Load the custom powershell module into your session
+  ```powershell
+  import-module .\Decom\
+  ```
+3. The Scream_Test_VM.ps1 file will be executed immediately after the change ticket gets approved. The Decom.ps1 file will be executed the next day after the scream test is deemed "passed" after a minimum of 14 calendar days (teams can request longer if needed). Both scripts will produce an output .txt file that located in the localhost's C:\Temp directory 
 4. Dot source and execute the Scream_Test_VM.ps1 or Decom.ps1 files 
 ```powershell
 .\Scream_Test_VM.ps1
