@@ -277,6 +277,8 @@ Function Delete-VM
         }  
     }
 
+    ### THIS NEXT SECTION IS DEDICATED TOWARDS v2 OF THE DECOM PROCESS...
+
     # try 
     # {
     #     # first check to see if there are any rogue objects associated to the VM

@@ -115,7 +115,7 @@ Function Scream_Test
         -LockLevel ReadOnly `
         -Scope $VM.Id `
         -Force `
-        -LockNotes "This VM is under scream test from change $($VmRF.Change_Number). Contact CloudOperations@Textron.com for status"
+        -LockNotes "This VM is under scream test from change $($VmRF.Change_Number). Contact our team email for status"
     
         start-sleep -Seconds 30
     

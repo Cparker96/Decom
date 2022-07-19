@@ -31,7 +31,7 @@ Function UnlinkVM-Tenable
         # gets the agent's info
         $headers = $null
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-        $resource = "https://cloud.tenable.com/scanners/null/agents?offset=0&limit=50&sort=name:asc&wf=core_version,distro,groups,ip,name,platform,status&w=TXAINFAZU902"
+        $resource = "some_URL_endpoint"
         $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
         $testconnectionagent = (Invoke-RestMethod -Uri $resource -Method Get -Headers $headers).agents 
 
@@ -59,7 +59,7 @@ Function UnlinkVM-Tenable
         # gets the agent's info
         $headers = $null
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-        $resource = "https://cloud.tenable.com/scanners/null/agents?offset=0&limit=50&sort=name:asc&wf=core_version,distro,groups,ip,name,platform,status&w=$($VM.Name)"
+        $resource = "some_URL_endpoint"
         $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
         $agent = Invoke-RestMethod -Uri $resource -Method Get -Headers $headers
     } catch {
@@ -98,7 +98,7 @@ Function UnlinkVM-Tenable
         #unlink the agent
         $headers = $null
         $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
-        $targetagent = "https://cloud.tenable.com/scanners/1/agents/$($agentid)"
+        $targetagent = "some_URL_endpoint/$($agentid)"
         $headers.Add("X-ApiKeys", "accessKey=$TenableaccessKey; secretKey=$TenablesecretKey")
         $unlink = Invoke-WebRequest -Uri $targetagent -Method Delete -Headers $headers
         start-sleep -Seconds 20

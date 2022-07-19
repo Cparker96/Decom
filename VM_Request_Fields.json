@@ -1,7 +1,7 @@
 {
-    "Hostname" : "TXEDBSAZU013",
-    "Environment" : "AzureCloud",
-    "Subscription" : "TSV",
-    "Resource_Group" : "BI-ASAPReplication-Prod",
-    "Change_Number" : "CHG0034448"
+    "Hostname" : "some_hostname",
+    "Environment" : "some_Azure_Tenant",
+    "Subscription" : "some_subscription",
+    "Resource_Group" : "some_resource_group",
+    "Change_Number" : "some_change_number"
 }
