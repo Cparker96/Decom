@@ -411,6 +411,21 @@ $DataTabledecom | Write-DbaDbTableData -SqlInstance $sqlinstance `
 -Table dbo.AzureDecom `
 -SqlCredential $SqlCredential
 
+# check to make sure the sql record was written
+$checksqlrecord = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
+    -Query "SELECT * from dbo.AzureDecom `
+            WHERE Change_Number = @vmchangenumber `
+            AND Decom_Datetime IS NOT NULL" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+
+if ($null -eq $checksqlrecord)
+{
+    Write-Host "There was an internal issue with writing a scream test record to SQL. This can happen because the server name variable in the change request was inputted incorrectly. `
+    Some unaccepted formats would be 'servername.txt.textron.com' or servername / 'IP Address'. The correct format should ONLY consist of 'servername'. Please add a comment on the change mentioning `
+    that a SQL record was not written but that the outputted Scream Test .txt file will still be attached to the change for visibility." -ForegroundColor Yellow
+} else {
+    Write-Host "SQL record successfully written to DB" -ForegroundColor Green
+}
+
 <#============================================
 Write Output to Text file 
 #============================================#>	
