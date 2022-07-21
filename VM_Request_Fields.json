@@ -1,7 +1,7 @@
 {
-    "Hostname" : "Decomstate",
-    "Environment" : "AzureCloud",
-    "Subscription" : "Enterprise",
-    "Resource_Group" : "308-Utility",
-    "Change_Number" : "CHG0033202"
+    "Hostname" : "TXBSIMSAGCP01",
+    "Environment" : "AzureUSGovernment_Old",
+    "Subscription" : "AGC_Bell",
+    "Resource_Group" : "SIMS_PROD",
+    "Change_Number" : "CHG0035093"
 }

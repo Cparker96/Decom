@@ -19,11 +19,12 @@ Function Scream_Test
 {
     Param
     (
-        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM
+        [parameter(Position = 0, Mandatory=$true)] [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $VM,
+        [parameter(Position = 0, Mandatory=$true)] $VmRF
     )
 
     [System.Collections.ArrayList]$Validation = @() 
-    $tag = @{Decom="Scream Test $($VmRF.Change_Number)"}
+    $tag = @{Decom="Scream Test - $($VmRF.Change_Number)"}
 
     # check to see if the VM is a domain controller first
     if ($VmRF.Hostname -like "*IDC*") 
@@ -111,7 +112,7 @@ Function Scream_Test
         # put a resource lock on the VM
         $newlock = New-AzResourceLock `
         -LockName 'SCREAM TEST' `
-        -LockLevel CanNotDelete `
+        -LockLevel ReadOnly `
         -Scope $VM.Id `
         -Force `
         -LockNotes "This VM is under scream test from change $($VmRF.Change_Number). Contact CloudOperations@Textron.com for status"

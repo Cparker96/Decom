@@ -64,9 +64,9 @@ Function Delete-VM
 
     try 
     {
-        Write-Host "Deleting the VM"
         $getvm = (Get-AzVM -Name $VM.Name | select Name).Name
         # delete the VM only
+        Write-Host "Deleting VM - $($getvm)"
         Remove-AzVM -Name $VM.Name -ResourceGroupName $VM.ResourceGroupName -Force > $null
         start-sleep -Seconds 100
 
@@ -103,13 +103,13 @@ Function Delete-VM
 
     try 
     {
-        Write-Host "Deleting the OS Disk"
         $getdisk = (Get-AzDisk -DiskName $VM.StorageProfile.OsDisk.Name | select Name).Name
         $getosdeleteoption = $VM.StorageProfile.OsDisk.DeleteOption
 
         if ($getosdeleteoption -eq 'Detach' -or ($null -eq $getosdeleteoption))
         {
             # remove the OS disk
+            Write-Host "Deleting OS Disk - $($getdisk)"
             $removeosdisk = Remove-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $VM.StorageProfile.OsDisk.Name -Force > $null
             start-sleep -Seconds 100
 
@@ -155,12 +155,12 @@ Function Delete-VM
 
     try 
     {
-        Write-Host "Deleting the NIC"
        # I know there is probably a better way to find this - but this is how im currently getting the nic
        # VM JSON properties don't have any NIC names in it
        $nicId = $VM.NetworkProfile.NetworkInterfaces.Id
        $nicarray = $nicId.Split('/')
        $getnic = (Get-AzNetworkInterface -ResourceGroupName $VM.ResourceGroupName -Name $nicarray[8] | select Name).Name
+       Write-Host "Deleting NIC - $($getnic)"
        $removenic = Remove-AzNetworkInterface -Name $nicarray[8] -ResourceGroupName $VM.ResourceGroupName -Force
        start-sleep -Seconds 100
        $retrievenic = Get-AzNetworkInterface -Name $nicarray[8]
@@ -210,16 +210,17 @@ Function Delete-VM
 
             foreach ($resource in $resources)
             {
+                # evaluate the resource type then delete it
                 if ($resource.ResourceType -eq 'Microsoft.Compute/disks')
                 {
-                    Write-host "Deleting any data disks"
                     $getdatadisk = (Get-AzDisk -ResourceGroupName $VM.ResourceGroupName -DiskName $resource.Name | select Name).Name
+                    Write-Host "Deleting Data Disk - $($getdatadisk)"
                     Remove-AzDisk -DiskName $resource.Name -ResourceGroupName $resource.ResourceGroupName -Force > $null
                     Start-sleep -Seconds 100
                     $resourcesdeleted += $getdatadisk
                 } elseif ($resource.ResourceType -eq 'Microsoft.Compute/snapshots') {
-                    Write-Host "Deleting any snapshots"
                     $getsnapshot = (Get-AzSnapshot -ResourceGroupName $VM.ResourceGroupName -SnapshotName $resource.Name | select Name).Name
+                    Write-Host "Deleting Snapshot - $($getsnapshot)"
                     Remove-AzSnapshot -ResourceGroupName $resource.ResourceGroupName -SnapshotName $resource.Name -Force > $null
                     Start-Sleep -Seconds 100
                     $resourcesdeleted += $getsnapshot
@@ -248,7 +249,7 @@ Function Delete-VM
     # pull remaining associated resources
     try 
     {
-        if ($VmRF.Hostname -like "*DBS*")
+        if ($VM.Name -like "*DBS*")
         {
             $tempname = $VM.Name
             $remainingresources = Get-AzResource -Name $tempname* | where {$_.ResourceType -ne 'Microsoft.Automation/AutomationAccounts/Runbooks'} | select Name, ResourceType
@@ -267,8 +268,8 @@ Function Delete-VM
     if ($checkrgresources.Count -eq 0)
     {
         try {
-            Write-Host "Deleting RG since nothing is in it"
-            $deleterg = Remove-AzResourceGroup -Name $Vm.ResourceGroupName -Force > $null
+            Write-Host "Deleting RG $($VM.ResourceGroupName) since nothing is in it"
+            $deleterg = Remove-AzResourceGroup -Name $VM.ResourceGroupName -Force > $null
             start-sleep -Seconds 60
         }
         catch {

@@ -85,7 +85,7 @@ if ($VmRF.Environment -eq 'AzureCloud')
     try 
     {
         Write-Host "Logging into Old Gov Cloud" -ForegroundColor Yellow
-        Connect-AzAccount -ServicePrincipal -Tenant $govtenantid -Environment $VmRF.Environment -Credential $govappregcredential -WarningAction Ignore > $null
+        Connect-AzAccount -ServicePrincipal -Tenant $govtenantid -Environment 'AzureUSGovernment' -Credential $govappregcredential -WarningAction Ignore > $null
         Set-AzContext -Subscription $VmRF.Subscription  
     }
     catch {
@@ -101,12 +101,13 @@ try {
     Write-Host "Retrieving the VM"
     $VM = Get-AzVM -Name $VmRF.Hostname -ResourceGroupName $VmRF.Resource_Group -ErrorAction Stop
 } catch {
-    $PSItem.Exception
+    Write-Host "Could not find $($VmRF.Hostname) in the subscription/RG mentioned" -ForegroundColor Red
+    Exit
 }
 
 if ($VM.Count -gt 1)
 {
-    Write-Host "There are duplicate VMs with the same name. Please stop and troubleshoot which one to deallocate"
+    Write-Host "There are duplicate VMs with the same name. Please stop and troubleshoot which one to deallocate" -ForegroundColor Yellow   
     Exit
 } else {
     Write-Host "VM found. Proceeding with other steps..." -ForegroundColor Yellow
@@ -117,8 +118,8 @@ Pull ticket info from SNOW
 ====================================#>
 
 $user = "sn.datacenter.integration.user"
-$pass = "sn.datacenter.integration.user"
-#$pass = $prodpass
+#$pass = "sn.datacenter.integration.user"
+$pass = $prodpass
 
 # Build auth header
 $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $user, $pass)))
@@ -130,7 +131,7 @@ $headers.Add('Accept','application/json')
 $headers.Add('Content-Type','application/json')
 
 # Get change request info
-$CRmeta = "https://textrontest2.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
+$CRmeta = "https://textronprod.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
 $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
 $findservernameinchange = $getCRticket.result.short_description.split(': ')
@@ -143,7 +144,7 @@ if (($getCRticket.result.number -eq $VmRF.Change_Number) -and ($findservernamein
 }
 
 # check to see if change request is in scheduled state
-$crticketendpoint = "https://textrontest2.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+$crticketendpoint = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
 $checkstate = Invoke-RestMethod -Headers $headers -Method Get -Uri $crticketendpoint
 
 if ($checkstate.result.state.display_value -ne 'Scheduled')
@@ -162,7 +163,7 @@ $ritmarray = $ritminfo.split(' ')
 $ritmnumber = $ritmarray[3]
 
 # Get RITM info
-$ritmmeta = "https://textrontest2.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
+$ritmmeta = "https://textronprod.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
 $getritmticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $ritmmeta
 
 # do RITM math to get user sys id
@@ -171,20 +172,11 @@ $sysidmath = $getusersysid.link.Split('/')
 $usersysid = $sysidmath[7]
 
 # Get requestor info
-$usermeta = "https://textrontest2.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
+$usermeta = "https://textronprod.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
 $getuserinfo = Invoke-RestMethod -Headers $headers -Method Get -Uri $usermeta
 
 # Get person who opened the request
 $username = $getuserinfo.result.name
-
-# # closing change request that was opened upon RITM request
-# $sctaskritmendpoint = "https://textrontest2.servicenowservices.com/api/now/table/sc_task?sysparm_query=request_item%3D$($getritmticket.result.sys_id)"
-# $getsctaskno = Invoke-RestMethod -Headers $headers -Method Get -Uri $sctaskritmendpoint
-
-# using staging table to make changes to SCTASK that's opened in PROD
-# $sctaskchangeendpoint = "https://textrontest2.servicenowservices.com/api/now/import/u_imp_sc_task_update"
-# $sctaskchangebody = "{`"u_sys_id`":`"$($getsctaskno.result.sys_id)`",`"u_work_notes`":`"`",`"u_state`":`"3`"}"
-# $closesctaskchange = Invoke-RestMethod -Headers $headers -Method Post -Uri $sctaskchangeendpoint -Body $sctaskchangebody
 
 <#==============================
 Any other miscellaneous info 
@@ -236,7 +228,7 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     Exit
 } else {
     Write-host "Starting scream test for $($VM.Name)" -ForegroundColor Yellow
-    $Screamtest = Scream_Test -VM $VM
+    $Screamtest = Scream_Test -VM $VM -VmRF $VmRF
     $Screamtest
 
     # this will search the properties of each obj in $screamtest[2..4] array
@@ -245,7 +237,7 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     {
         # post comment to ticket for scream test update
         Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect scream test changes" -ForegroundColor Yellow
-        $screamtest_worknote_url = "https://textrontest2.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
+        $screamtest_worknote_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
         $screamtest_worknote = "{`"work_notes`":`"Scream test has been completed.`"}"
         $screamtest_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $screamtest_worknote_url -Body $screamtest_worknote
     } else {
