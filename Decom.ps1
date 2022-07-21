@@ -133,7 +133,7 @@ $headers.Add('Content-Type','application/json')
 $CRmeta = "https://textronprod.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
 $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
-if (($getCRticket.result.number -eq $VmRF.Change_Number) -and ($findservernameinchange[1] -eq $VM.Name))
+if ($getCRticket.result.number -eq $VmRF.Change_Number)
 {
     Write-Host "Change request numbers match for $($VmRF.Change_Number) - proceeding to other steps..." -ForegroundColor Yellow
 } else {

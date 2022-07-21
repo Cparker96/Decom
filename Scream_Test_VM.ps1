@@ -133,11 +133,21 @@ $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
 $findservernameinchange = $getCRticket.result.short_description.split(': ')
 
-if (($getCRticket.result.number -eq $VmRF.Change_Number) -and ($findservernameinchange[1] -eq $VM.Name))
+if ($getCRticket.result.number -eq $VmRF.Change_Number)
 {
     Write-Host Write-Host "Change request numbers match for $($VmRF.Change_Number) - proceeding to other steps..." -ForegroundColor Yellow
 } else {
     Write-Host "Change request specified in the JSON file does not match what was pulled. Please troubleshoot" -ForegroundColor Yellow
+}
+
+$findservernameinchange = $getCRticket.result.short_description.split(': ')
+
+if ($findservernameinchange[1] -eq $VM.Name)
+{
+    Write-Host "VM name matches for $($VmRF.Hostname) - proceeding to other steps..." -ForegroundColor Yellow
+} else {
+    Write-Host "VM name specified in the change does not match what is specified in the CR. Please troubleshoot" -ForegroundColor Yellow
+    Exit
 }
 
 # check to see if change request is in scheduled state
