@@ -1,7 +1,7 @@
 {
-    "Hostname" : "TXKDBSAZU043",
-    "Environment" : "AzureCloud",
-    "Subscription" : "Kautex",
-    "Resource_Group" : "MANU-PTC-PROD",
-    "Change_Number" : "CHG0034903"
+    "Hostname" : "TXBSIMSAGCP01",
+    "Environment" : "AzureUSGovernment_Old",
+    "Subscription" : "AGC_Bell",
+    "Resource_Group" : "SIMS_PROD",
+    "Change_Number" : "CHG0035093"
 }
