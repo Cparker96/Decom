@@ -28,7 +28,8 @@ try {
     $gcctenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'GCC-Tenant-ID' -AsPlainText
     $TenableaccessKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableAccessKey' -AsPlainText
     $TenablesecretKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableSecretKey' -AsPlainText
-    $prodpass = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-Password' -AsPlainText 
+    $snowapiuser = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-User' -AsPlainText 
+    $snowapipass = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-Password' -AsPlainText 
     $sqlinstance = 'txadbsazu001.database.windows.net'
     $sqlDatabase = 'TIS_CMDB'
     $SqlCredential = New-Object System.Management.Automation.PSCredential ('ORRCheckSql', ((Get-AzKeyVaultSecret -vaultName "kv-308" -name 'ORRChecks-Sql').SecretValue))
@@ -119,12 +120,8 @@ if ($VM.Count -gt 1)
 Pull ticket info from SNOW
 ====================================#>
 
-$user = "sn.datacenter.integration.user"
-#$pass = "sn.datacenter.integration.user"
-$pass = $prodpass
-
 # Build auth header
-$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $user, $pass)))
+$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $snowapiuser, $snowapipass)))
 
 # Set proper headers
 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -136,13 +133,21 @@ $headers.Add('Content-Type','application/json')
 $CRmeta = "https://textronprod.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
 $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
-$findservernameinchange = $getCRticket.result.short_description.split(': ')
-
-if (($getCRticket.result.number -eq $VmRF.Change_Number) -and ($findservernameinchange[1] -eq $VM.Name))
+if ($getCRticket.result.number -eq $VmRF.Change_Number)
 {
     Write-Host "Change request numbers match for $($VmRF.Change_Number) - proceeding to other steps..." -ForegroundColor Yellow
 } else {
     Write-Host "Change request specified in the JSON file does not match what was pulled. Please troubleshoot" -ForegroundColor Yellow
+    Exit
+}
+
+$findservernameinchange = $getCRticket.result.short_description.split(': ')
+
+if ($findservernameinchange[1] -eq $VM.Name)
+{
+    Write-Host "VM name matches for $($VmRF.Hostname) - proceeding to other steps..." -ForegroundColor Yellow
+} else {
+    Write-Host "VM name specified in the change does not match what is specified in the CR. Please troubleshoot" -ForegroundColor Yellow
     Exit
 }
 
@@ -405,6 +410,21 @@ $DataTabledecom | Write-DbaDbTableData -SqlInstance $sqlinstance `
 -Database $sqlDatabase `
 -Table dbo.AzureDecom `
 -SqlCredential $SqlCredential
+
+# check to make sure the sql record was written
+$checksqlrecord = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
+    -Query "SELECT * from dbo.AzureDecom `
+            WHERE Change_Number = @vmchangenumber `
+            AND Decom_Datetime IS NOT NULL" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+
+if ($null -eq $checksqlrecord)
+{
+    Write-Host "There was an internal issue with writing a scream test record to SQL. This can happen because the server name variable in the change request was inputted incorrectly. `
+    Some unaccepted formats would be 'servername.txt.textron.com' or servername / 'IP Address'. The correct format should ONLY consist of 'servername'. Please add a comment on the change mentioning `
+    that a SQL record was not written but that the outputted Scream Test .txt file will still be attached to the change for visibility." -ForegroundColor Yellow
+} else {
+    Write-Host "SQL record successfully written to DB" -ForegroundColor Green
+}
 
 <#============================================
 Write Output to Text file 

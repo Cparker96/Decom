@@ -26,7 +26,8 @@ try {
     $gccappid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-GCC-App-ID' -AsPlainText
     $gccappsecret = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-GCC-Client-Secret' -AsPlainText
     $gcctenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'GCC-Tenant-ID' -AsPlainText
-    $prodpass = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-Password' -AsPlainText 
+    $snowapiuser = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-User' -AsPlainText 
+    $snowapipass = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-Password' -AsPlainText 
     $sqlinstance = 'txadbsazu001.database.windows.net'
     $sqlDatabase = 'TIS_CMDB'
     $SqlCredential = New-Object System.Management.Automation.PSCredential ('ORRCheckSql', ((Get-AzKeyVaultSecret -vaultName "kv-308" -name 'ORRChecks-Sql').SecretValue))
@@ -96,7 +97,7 @@ if ($VmRF.Environment -eq 'AzureCloud')
     Exit
 }
 
-# need Get-AzVM for this step - the JSON is different and won't work with Get-AzResource
+# retrieve VM from the portal
 try {
     Write-Host "Retrieving the VM"
     $VM = Get-AzVM -Name $VmRF.Hostname -ResourceGroupName $VmRF.Resource_Group -ErrorAction Stop
@@ -117,12 +118,8 @@ if ($VM.Count -gt 1)
 Pull ticket info from SNOW
 ====================================#>
 
-$user = "sn.datacenter.integration.user"
-#$pass = "sn.datacenter.integration.user"
-$pass = $prodpass
-
 # Build auth header
-$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $user, $pass)))
+$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $snowapiuser, $snowapipass)))
 
 # Set proper headers
 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
@@ -136,11 +133,21 @@ $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
 $findservernameinchange = $getCRticket.result.short_description.split(': ')
 
-if (($getCRticket.result.number -eq $VmRF.Change_Number) -and ($findservernameinchange[1] -eq $VM.Name))
+if ($getCRticket.result.number -eq $VmRF.Change_Number)
 {
-    Write-Host "Change request numbers match - proceeding to other steps..." -ForegroundColor Yellow
+    Write-Host Write-Host "Change request numbers match for $($VmRF.Change_Number) - proceeding to other steps..." -ForegroundColor Yellow
 } else {
     Write-Host "Change request specified in the JSON file does not match what was pulled. Please troubleshoot" -ForegroundColor Yellow
+}
+
+$findservernameinchange = $getCRticket.result.short_description.split(': ')
+
+if ($findservernameinchange[1] -eq $VM.Name)
+{
+    Write-Host "VM name matches for $($VmRF.Hostname) - proceeding to other steps..." -ForegroundColor Yellow
+} else {
+    Write-Host "VM name specified in the change does not match what is specified in the CR. Please troubleshoot" -ForegroundColor Yellow
+    Exit
 }
 
 # check to see if change request is in scheduled state
@@ -231,7 +238,6 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     $Screamtest = Scream_Test -VM $VM -VmRF $VmRF
     $Screamtest
 
-    # this will search the properties of each obj in $screamtest[2..4] array
     # if status eq passed, then add a work note
     if (($Screamtest[2].Status[0] -eq 'Passed') -and ($Screamtest[2].Status[1] -eq 'Passed') -and ($Screamtest[2].Status[2]-eq 'Passed'))
     {
@@ -269,20 +275,36 @@ $DataTablescreamtest | Write-DbaDbTableData -SqlInstance $sqlinstance `
 -Table dbo.AzureDecom `
 -SqlCredential $SqlCredential 
 
-if (($Validation[0].Status -eq 'Passed') -and ($Validation[1].Status -eq 'Passed') -and ($Validation[2].Status -eq 'Passed'))
+# check to make sure that the sql record was created
+$checksqlrecord = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
+    -Query "SELECT * FROM dbo.AzureDecom `
+            WHERE Change_Number = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+
+if ($null -eq $checksqlrecord)
 {
-    $screamtest_pass_yes = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
-    -Query "UPDATE dbo.AzureDecom `
-            SET Screamtest_Pass = 'Y' `
-            WHERE Screamtest_Datetime IS NOT NULL `
-            AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+    Write-Host "There was an internal issue with writing a scream test record to SQL. This can happen because the server name variable in the change request was inputted incorrectly. `
+    Some unaccepted formats would be 'servername.txt.textron.com' or servername / 'IP Address'. The correct format should ONLY consist of 'servername'. Please add a comment on the change mentioning `
+    that a SQL record was not written but that the outputted Scream Test .txt file will still be attached to the change for visibility." -ForegroundColor Yellow
 } else {
-    $screamtest_pass_no = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
-    -Query "UPDATE dbo.AzureDecom `
-            SET Screamtest_Pass = 'N' `
-            WHERE Screamtest_Datetime IS NOT NULL `
-            AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+    if (($Validation[0].Status -eq 'Passed') -and ($Validation[1].Status -eq 'Passed') -and ($Validation[2].Status -eq 'Passed'))
+    {
+        $screamtest_pass_yes = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
+        -Query "UPDATE dbo.AzureDecom `
+                SET Screamtest_Pass = 'Y' `
+                WHERE Screamtest_Datetime IS NOT NULL `
+                AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+    } else {
+        $screamtest_pass_no = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
+        -Query "UPDATE dbo.AzureDecom `
+                SET Screamtest_Pass = 'N' `
+                WHERE Screamtest_Datetime IS NOT NULL `
+                AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
+        
+        Write-Host "Something failed in the scream test when evaluating all sections passed. Please troubleshoot" -ForegroundColor Yellow
+    }
+    Write-Host "SQL record successfully written to DB" -ForegroundColor Green
 }
+
 
 # only input Errors section if there are error objects
 [System.Collections.ArrayList]$Errors  = @()
