@@ -135,7 +135,7 @@ $findservernameinchange = $getCRticket.result.short_description.split(': ')
 
 if ($getCRticket.result.number -eq $VmRF.Change_Number)
 {
-    Write-Host Write-Host "Change request numbers match for $($VmRF.Change_Number) - proceeding to other steps..." -ForegroundColor Yellow
+    Write-Host "Change request numbers match for $($VmRF.Change_Number) - proceeding to other steps..." -ForegroundColor Yellow
 } else {
     Write-Host "Change request specified in the JSON file does not match what was pulled. Please troubleshoot" -ForegroundColor Yellow
 }
