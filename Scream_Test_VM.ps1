@@ -358,3 +358,17 @@ catch {
 } 
 
 $PSStyle.OutputRendering = $prevRendering
+
+# fetching and closing the 'scream test vm' change task
+Write-Host "Closing the 'scream test vm' task related to $($VmRF.Change_Number)"
+$changetasks ="https://textronprod.servicenowservices.com/api/now/table/change_task?sysparm_query=change_request.number%3D$($getCRticket.result.number)^state=1^short_descriptionLIKEscream test vm"
+$getchangetasks = Invoke-RestMethod -Headers $headers -Method Get -Uri $changetasks
+
+foreach ($changetask in $getchangetasks.result.sys_id)
+{
+    $changetaskendpoint ="https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)/task/$($changetask)"
+    $changetaskbody = "{`"state`":`"3`"}"
+    $closechangestasks = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changetaskendpoint -Body $changetaskbody
+}
+
+Start-Sleep -Seconds 10

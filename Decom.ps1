@@ -456,7 +456,7 @@ $changeimplementbody = "{`"state`":`"-1`"}"
 $movechangetoimplement = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changeimplement -Body $changeimplementbody
 Start-Sleep -Seconds 15
 
-# fetching and closing all change tasks
+# fetching and closing all remaining open change tasks
 Write-Host "Closing all change tasks related to $($VmRF.Change_Number)"
 $changetasks ="https://textronprod.servicenowservices.com/api/now/table/change_task?sysparm_query=change_request.number%3D$($getCRticket.result.number)^state=1"
 $getchangetasks = Invoke-RestMethod -Headers $headers -Method Get -Uri $changetasks
