@@ -28,14 +28,19 @@ Function Delete-VM
 
     try 
     {
-        Write-Host "Removing the scream test resource lock"
-        # removing the lock
-        Remove-AzResourceLock -LockName 'SCREAM TEST' -Scope $VM.Id -Force > $null
-        start-sleep -Seconds 60
+        Write-Host "Removing all resource locks"
+        $locks = Get-AzResourceLock -ResourceName $VM.Name -ResourceType 'Microsoft.Compute/virtualMachines' -ResourceGroupName $VM.ResourceGroupName
 
-        $retrievelock = get-azresourcelock -ResourceType "Microsoft.Compute/VirtualMachines" -ResourceName $VM.Name -ResourceGroupName $VM.ResourceGroupName
+        foreach ($lock in $locks)
+        {
+            # removing the locks
+            Remove-AzResourceLock -LockName $lock.Name -Scope $VM.Id -Force > $null
+            start-sleep -Seconds 60
+        }
 
-        if ($null -eq $retrievelock)
+        $retrievelocks = get-azresourcelock -ResourceType "Microsoft.Compute/VirtualMachines" -ResourceName $VM.Name -ResourceGroupName $VM.ResourceGroupName
+
+        if ($retrievelocks.count -eq 0)
         {
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Delete Lock'
@@ -46,7 +51,7 @@ Function Delete-VM
             $Validation.Add([PSCustomObject]@{System = 'Server' 
             Step = 'Delete Lock'
             Status = 'Failed'
-            FriendlyError = "The lock on $($VM.Name) could not be taken off"
+            FriendlyError = "There seem to be resource locks still outstanding on $($VM.Name)"
             PsError = $PSItem.Exception}) > $null
         }
     }
@@ -54,7 +59,7 @@ Function Delete-VM
         $Validation.Add([PSCustomObject]@{System = 'Server' 
         Step = 'Delete Lock'
         Status = 'Failed'
-        FriendlyError = "Could not find associated lock for $($VM.Name)"
+        FriendlyError = "Could not retrieve and delete resource locks for $($VM.Name)"
         PsError = $PSItem.Exception}) > $null
 
         return $Validation
