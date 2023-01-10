@@ -1,7 +1,7 @@
 {
-    "Hostname" : "TXBMMLINKGCCT02",
-    "Environment" : "AzureUSGovernment_Old",
-    "Subscription" : "AGC_Bell",
-    "Resource_Group" : "MILITARYMISSIONLINK_TEST",
-    "Change_Number" : "CHG0036571"
+    "Hostname" : "your_hostname",
+    "Environment" : "your_tenant",
+    "Subscription" : "your_subscription",
+    "Resource_Group" : "your_resource_group",
+    "Change_Number" : "your_change_number"
 }

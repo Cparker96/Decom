@@ -11,8 +11,8 @@
         FunctionName    : Scream-Test
         Created by      : Cody Parker
         Date Coded      : 11/9/2021
-        Modified by     : 
-        Date Modified   : 
+        Modified by     : ...
+        Date Modified   : ...
 
 #>
 Function Scream_Test
@@ -115,7 +115,7 @@ Function Scream_Test
         -LockLevel ReadOnly `
         -Scope $VM.Id `
         -Force `
-        -LockNotes "This VM is under scream test from change $($VmRF.Change_Number). Contact CloudOperations@Textron.com for status"
+        -LockNotes "This VM is under scream test from change $($VmRF.Change_Number). Contact 'your_email' for status"
     
         start-sleep -Seconds 30
     

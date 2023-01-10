@@ -17,22 +17,22 @@ try {
     Connect-AzAccount -Environment AzureCloud -WarningAction Ignore > $null
     Set-AzContext -Subscription Enterprise > $null
 
-    $commercialappid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Commercial-App-ID' -AsPlainText
-    $commercialappsecret = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Commercial-Secret' -AsPlainText
-    $commercialtenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Azure-Tenant-ID' -AsPlainText
-    $govappid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Gov-App-ID' -AsPlainText
-    $govappsecret = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Gov-Client-Secret' -AsPlainText
-    $govtenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Gov-Tenant-ID' -AsPlainText
-    $gccappid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-GCC-App-ID' -AsPlainText
-    $gccappsecret = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-GCC-Client-Secret' -AsPlainText
-    $gcctenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'GCC-Tenant-ID' -AsPlainText
-    $TenableaccessKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableAccessKey' -AsPlainText
-    $TenablesecretKey = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'ORRChecks-TenableSecretKey' -AsPlainText
-    $snowapiuser = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-User' -AsPlainText 
-    $snowapipass = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-Password' -AsPlainText 
-    $sqlinstance = 'txadbsazu001.database.windows.net'
-    $sqlDatabase = 'TIS_CMDB'
-    $SqlCredential = New-Object System.Management.Automation.PSCredential ('ORRCheckSql', ((Get-AzKeyVaultSecret -vaultName "kv-308" -name 'ORRChecks-Sql').SecretValue))
+    $commercialappid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $commercialappsecret = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $commercialtenantid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $govappid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $govappsecret = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $govtenantid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $gccappid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $gccappsecret = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $gcctenantid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $TenableaccessKey = Get-AzKeyVaultSecret -vaultName 'your_vault_name' -name 'your_secret_name' -AsPlainText
+    $TenablesecretKey = Get-AzKeyVaultSecret -vaultName 'your_vault_name' -name 'your_secret_name' -AsPlainText
+    $snowapiuser = Get-AzKeyVaultSecret -vaultName 'your_vault_name' -name 'your_secret_name' -AsPlainText 
+    $snowapipass = Get-AzKeyVaultSecret -vaultName 'your_vault_name' -name 'your_secret_name' -AsPlainText 
+    $sqlinstance = 'your_sql_instance'
+    $sqlDatabase = 'your_sql_database'
+    $SqlCredential = New-Object System.Management.Automation.PSCredential ('your_secret_name', ((Get-AzKeyVaultSecret -vaultName "your_vault_name" -name 'your_secret_name').SecretValue))
 }
 catch {
     Write-Error "Could not get keys from the vault" -ErrorAction Stop
@@ -123,14 +123,13 @@ Pull ticket info from SNOW
 # Build auth header
 $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $snowapiuser, $snowapipass)))
 
-# Set proper headers
 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
 $headers.Add('Authorization',('Basic {0}' -f $base64AuthInfo))
 $headers.Add('Accept','application/json')
 $headers.Add('Content-Type','application/json')
 
 # Get change request info
-$CRmeta = "https://textronprod.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
+$CRmeta = "your_SNOW_endpoint"
 $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
 if ($getCRticket.result.number -eq $VmRF.Change_Number)
@@ -152,7 +151,7 @@ if ($findservernameinchange[1] -eq $VM.Name)
 }
 
 # check to see if change request is in scheduled state
-$crticketendpoint = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+$crticketendpoint = "your_SNOW_endpoint"
 $checkstate = Invoke-RestMethod -Headers $headers -Method Get -Uri $crticketendpoint
 
 if ($checkstate.result.state.display_value -ne 'Scheduled')
@@ -167,7 +166,7 @@ $screamtestduration = $screamtestinfo[6]
 
 # check to see if its time to decom the stuff
 $retrievescreamtestdate = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
--Query "SELECT TOP 1 * FROM dbo.AzureDecom `
+-Query "SELECT TOP 1 * FROM 'your_sql_table' `
         WHERE Change_Number = @vmchangenumber `
         AND Screamtest_Datetime IS NOT NULL `
         AND Screamtest_Pass = 'Y'" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
@@ -197,7 +196,7 @@ $ritmarray = $ritminfo.split(' ')
 $ritmnumber = $ritmarray[3]
 
 # Get RITM info
-$ritmmeta = "https://textronprod.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
+$ritmmeta = "your_SNOW_endpoint"
 $getritmticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $ritmmeta
 
 # do RITM math to get user sys id
@@ -206,7 +205,7 @@ $sysidmath = $getusersysid.link.Split('/')
 $usersysid = $sysidmath[7]
 
 # Get requestor info
-$usermeta = "https://textronprod.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
+$usermeta = "your_SNOW_endpoint"
 $getuserinfo = Invoke-RestMethod -Headers $headers -Method Get -Uri $usermeta
 
 # Get person who opened the request
@@ -262,7 +261,7 @@ if (($DeleteVMObject[0].Status[0] -eq 'Passed') -and ($DeleteVMObject[0].Status[
 {
     # post comment to ticket for VM resources update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect resource changes" -ForegroundColor Yellow
-    $delete_vm_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $delete_vm_url = "your_SNOW_endpoint"
     $delete_vm_worknote = "{`"work_notes`":`"VM and associated resources have been deleted.`"}"
     $delete_vm_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_vm_url -Body $delete_vm_worknote
 } else {
@@ -284,13 +283,13 @@ if (($DeleteADObject[0].Status -eq 'Passed') -and ($DeleteADObject[1].Status -eq
 {
     # post comment to ticket for AD object update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect AD object changes" -ForegroundColor Yellow
-    $delete_ADObject_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $delete_ADObject_url = "your_SNOW_endpoint"
     $delete_ADObject_worknote = "{`"work_notes`":`"No AD object was found. It either didn't exist or someone prior to this operation deleteed it.`"}"
     $delete_ADObject_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_ADObject_url -Body $delete_ADObject_worknote
 } elseif (($DeleteADObject[0].Status -eq 'Passed') -and ($DeleteADObject[1].Status -eq 'Passed') -and ($DeleteADObject[2].Status -eq 'Passed')) {
     # post comment to ticket for AD object update
     Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect AD object changes" -ForegroundColor Yellow
-    $delete_ADObject_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $delete_ADObject_url = "your_SNOW_endpoint"
     $delete_ADObject_worknote = "{`"work_notes`":`"AD Object has been taken out.`"}"
     $delete_ADObject_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $delete_ADObject_url -Body $delete_ADObject_worknote
 } 
@@ -313,13 +312,13 @@ if (($UnlinkVMObject[0][0].Status -eq 'Passed') -and ($UnlinkVMObject[0][1].Stat
 {
     # post comment to ticket for unlinking tenable
     Write-Host "Updating Change Request $($VmRF.Change_Number) to reflect Tenable object changes" -ForegroundColor Yellow
-    $tenable_object_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $tenable_object_url = "your_SNOW_endpoint"
     $tenable_object_worknote = "{`"work_notes`":`"Connection established, but no Tenable object found. Someone else has already deleted it.`"}"
     $tenable_object_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $tenable_object_url -Body $tenable_object_worknote
 } elseif (($UnlinkVMObject[0][0].Status -eq 'Passed') -and ($UnlinkVMObject[0][1].Status -eq 'Passed') -and ($UnlinkVMObject[0][2].Status -eq 'Passed')) {
     # post comment to ticket for unlinking tenable
     Write-Host "Updating Change Request $($VmRF.Change_Number) to reflect Tenable object changes" -ForegroundColor Yellow
-    $tenable_object_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.sys_id)"
+    $tenable_object_url = "your_SNOW_endpoint"
     $tenable_object_worknote = "{`"work_notes`":`"Tenable object successfully deleted.`"}"
     $tenable_object_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $tenable_object_url -Body $tenable_object_worknote
 }
@@ -408,19 +407,19 @@ $DataTabledecom = $sqloutputdecom | ConvertTo-DbaDataTable
 
 $DataTabledecom | Write-DbaDbTableData -SqlInstance $sqlinstance `
 -Database $sqlDatabase `
--Table dbo.AzureDecom `
+-Table 'your_table_name' `
 -SqlCredential $SqlCredential
 
 # check to make sure the sql record was written
 $checksqlrecord = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
-    -Query "SELECT * from dbo.AzureDecom `
+    -Query "SELECT * from 'your_table_name' `
             WHERE Change_Number = @vmchangenumber `
             AND Decom_Datetime IS NOT NULL" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
 
 if ($null -eq $checksqlrecord)
 {
     Write-Host "There was an internal issue with writing a scream test record to SQL. This can happen because the server name variable in the change request was inputted incorrectly. `
-    Some unaccepted formats would be 'servername.txt.textron.com' or servername / 'IP Address'. The correct format should ONLY consist of 'servername'. Please add a comment on the change mentioning `
+    Some unaccepted formats would be 'servername.domain.com' or servername / 'IP Address'. The correct format should ONLY consist of 'servername'. Please add a comment on the change mentioning `
     that a SQL record was not written but that the outputted Scream Test .txt file will still be attached to the change for visibility." -ForegroundColor Yellow
 } else {
     Write-Host "SQL record successfully written to DB" -ForegroundColor Green
@@ -451,19 +450,19 @@ Updating/Closing SNOW Change Request
 
 # moving change request to Implement state
 Write-Host "Moving $($VmRF.Change_Number) to Implement state"
-$changeimplement = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+$changeimplement = "your_SNOW_endpoint"
 $changeimplementbody = "{`"state`":`"-1`"}"
 $movechangetoimplement = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changeimplement -Body $changeimplementbody
 Start-Sleep -Seconds 15
 
 # fetching and closing all remaining open change tasks
 Write-Host "Closing all change tasks related to $($VmRF.Change_Number)"
-$changetasks ="https://textronprod.servicenowservices.com/api/now/table/change_task?sysparm_query=change_request.number%3D$($getCRticket.result.number)^state=1"
+$changetasks ="your_SNOW_endpoint"
 $getchangetasks = Invoke-RestMethod -Headers $headers -Method Get -Uri $changetasks
 
 foreach ($changetask in $getchangetasks.result.sys_id)
 {
-    $changetaskendpoint ="https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)/task/$($changetask)"
+    $changetaskendpoint ="your_SNOW_endpoint"
     $changetaskbody = "{`"state`":`"3`"}"
     $closechangestasks = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changetaskendpoint -Body $changetaskbody
 }
@@ -473,13 +472,13 @@ if ($delta.days -lt 0)
 { 
     # Closing change request with issues
     Write-Host "Moving $($VmRF.Change_Number) to Closed state"
-    $changeclosed = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+    $changeclosed = "your_SNOW_endpoint"
     $changeclosedbody ="{`"close_code`":`"successful_issues`",`"close_notes`":`"Resources were deleted outside of change window.`",`"state`":`"3`"}"
     $movechangetoclosed = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changeclosed -Body $changeclosedbody
 } else {
     # Closing change request
     Write-Host "Moving $($VmRF.Change_Number) to Closed state"
-    $changeclosed = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+    $changeclosed = "your_SNOW_endpoint"
     $changeclosedbody ="{`"close_code`":`"successful`",`"close_notes`":`"Closed complete.`",`"state`":`"3`"}"
     $movechangetoclosed = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changeclosed -Body $changeclosedbody
 }

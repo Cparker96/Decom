@@ -1,86 +1,36 @@
-# Introduction 
-An overview of the Scream Test/VM Decommissioning Process can be found here:
+<h2>Overview</h2>
 
-https://ontextron.sharepoint.com/:w:/r/sites/aio/_layouts/15/Doc.aspx?sourcedoc=%7B4FE09A7F-55FA-4741-AEAB-8CB77917FC68%7D&file=Server%20Decom%20Checklist.docx&action=default&mobileredirect=true
+This readme will be fully dedicated to the Decom repository that serves as a custom powershell module to verify that an Azure virtual machine is ready to be decommissioned once it has passed a scream test (validating that it can be deleted without production outages) and verified across a change board. 
 
-# Access Requirements
-Must have your Contributor role checked out over the scope of the VM you are running the scream test on
+All resource and other utilities such as variable names, keys, and links have been sanitized of company specific jargon and have been replaced by the word "your" followed by a general description of what the resource entails (Ex: $key = "your_key").
 
-# Module Requirements
-* Powershell - Version Min "7.1.2"
-* Azure Module "AZ" - Version Min "7.0.0"
-* Dbatools - Version Min "1.0.153"
+<h2>Description</h2>
 
-# Data Sources
-To determine Readiness there are multiple data sources to check 
-* SNOW 'Decommission a Server' change request
-* Azure Portal
-* Active Directory
-* Cloud Operation's Database - txadbsazu001.database.windows.net
-* Cloud Operation's Azure Blob - https://tisutility.blob.core.windows.net/
-* Tenable - https://cloud.tenable.com
+The Decom module is to be utilized by either a member of the Cloud Operations Team or an MSP with rights to manage all IaaS resources in Azure. Once a change request has been submitted and approved, a vendor technician will initiate a scream test using the Scream_Test_VM.ps1 file. This script will shutdown the VM, tag the VM appropriately, and put a resource lock on the VM to prevent accidental power up or deletion of the resource (the scream test must be active for at least 14 calendar days). 
 
-# Importing Modules
-To import a local module follow the below steps: 
-1. Download the module files from the Azure Blob and download the file with the most current datetime stamp.
-2. Make sure you do not already have a copy of the Decom module on your computer and remove the folder in that path until the below script returns nothing.
-```powershell
-get-module Decom
-```
-3. Make sure the module was also cleaned up from your session.
+Once scream testing has completed, they will then perform the actual deletion of the VM and related resources using the Decom.ps1 file. This script will delete the VM and its associated resources which include the VM object, the OS disk, data disks attached to the VM, snapshots that have been taken of the OS disk, as well as other resources that could be tied to it such as storage accounts, availability sets, etc. 
+
+It will also authenticate with Active Directory, attempt to find the computer object, and delete the object from the domain. The same actions will be taken with our vulnerability scanning tool. 
+
+Once all resources have been deleted and all external objects have been unlinked, there will be a .txt file of both the results of the scream test and programmtic deletion process that will get created in the localhost's C:\Temp directory. They will attach the results to the change ticket, along with any special work notes that they may need to apply depending on the outcome. The information in these text files will contain the raw output of each step along with a Pass/Fail state for visibility. 
+
+<h2>Usage</h2>
+
+1. Open a code editor of your choice with the parent ORR_Checks folder
+2. Fill out the VM_Request_Fields.json file with server metadata and save it
+3. Make sure you don't have a copy of a previous version of the module and its contents
 ```powershell
 get-module Decom | remove-module
 ```
-4. Import the module into your session by changing into the root directory that holds the Scream_Test folder then importing the module in the Scream_Test folder
-```powershell
-import-module .\Decom\
-```
-5. Make sure the version is the expected version and that the import was successful.
-```powershell
-get-module Decom
-```
-
-# Running the Script
-1. Make sure you are in the root directory for the Decom folder.
-2. Update and save the values for VM_Request_Fields.json using valid JSON syntax. 
-    - If your server lives in the old Azure Gov environment (not GCC), please specify in the 'Environment' field of the JSON of a value of "AzureUSGovernment_Old"
-    - If your server lives in the new Azure GCC-HI environment, please specify in the 'Environment' field of the JSON of a value of "AzureUSGovernment"
-3. Run Scream_Test_VM.ps1 and Decom.ps1 by . sourcing the file while in the correct working directory.
-
+4. Load the custom powershell module into your session
+  ```powershell
+  import-module .\Decom\
+  ```
+3. The Scream_Test_VM.ps1 file will be executed immediately after the change ticket gets approved. The Decom.ps1 file will be executed the next day after the scream test is deemed "passed" after a minimum of 14 calendar days (teams can request longer if needed). Both scripts will produce an output .txt file that located in the localhost's C:\Temp directory 
+4. Dot source and execute the Scream_Test_VM.ps1 or Decom.ps1 files 
 ```powershell
 .\Scream_Test_VM.ps1
 ```
-
 ```powershell
 .\Decom.ps1
 ```
-4. Upload the text file in your temp drive named SERVERNAME_yyyy-MM-dd.HH.mm_(Scream-Test/Decom).txt to the SNOW ticket once all steps have correctly passed. 
-
-***NOTE*** PLEASE DO NOT MOVE THE CHANGE REQUEST INTO A DIFFERENT STATE THAN WHAT IT SHOULD BE IN (SCHEDULED). THE SCRIPT WILL MANAGE THE STATE
-
-# Scream Test Process (*Assuming a normal scream test*)
-1. A "Decommission a Server" request is submitted via SNOW Service Portal through a requestor. The ticket is assigned to a vendor technician.
-2. A change request is created through a SNOW automation workflow. 
-3. The change request goes through the BU specific CAB meeting and is approved by the appropriate approvers. 
-4. The vendor technician will import the module into their session then utilize the Scream_Test_VM.ps1 file to go through the scream test process via Textron policy.
-    - Refer to the 'Importing Modules' section above for module importing/execution
-5. Once every step has been deemed 'Passed', the vendor technician will navigate to the file path which the text file was created (Running the script - step 4)
-and attach to the change request.
-
-# Decommission Process (*Assuming a normal decommission*)
-1. A vendor technician will wait for the alloted scream test in number of days mentioned (standard policy states this number is 14 days - can be scream tested longer than that but needs at least the minimum 14 day threshold).
-2. The vendor technician will import the module into their session then utilize the Decom.ps1 file to go through the decommission process via Textron policy.
-    - This includes taking the resource lock off/deleting the VM and associated resources (OS disk, NIC, data disks, snapshots, etc.), removing the AD object from Textron's AD (if present), and removing the Tenable agent from the Tenable portal (if present).
-    - The Decom.ps1 file will also manage all responsibilities for the change request in SNOW (moving to the required 'states', closing change tasks, and closing it with the correct close code and notes).
-3. Once every step has been deemed 'Passed', the vendor technician will navigate to the file path which the text file was created (Running the script - step 4)
-and attach to the change request.
-
-# Notes on Scream Test/Decom execution
-* If you receive any sort of error in the text files, you will have to rerun Scream_Test_VM.ps1 and/or Decom.ps1 in order to meet Textron policy.
-* You may run Scream_Test_VM.ps1 as many times as you need but all fields must have 'Passed' or 'Skipped' as expected.
-* For right now, a member of the Cloud Ops team will have to manually move the change request to the 'Scheduled' state by clicking the 'Request Approval' button on the change - this ensures that the change data complies with Textron standards and can be sent to CAB for approval. 
-
-
-# Need help?
-If there are any questions please reach out to CloudOps@Textron.com via email with the textfile output, Server Name, Ticket Number, and Timestamp of the run you are having trouble with. 
-

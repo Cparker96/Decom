@@ -11,8 +11,8 @@
         FunctionName    : Remove-ActiveDirectoryObject
         Created by      : Cody Parker
         Date Coded      : 11/9/2021
-        Modified by     : 
-        Date Modified   : 
+        Modified by     : ...
+        Date Modified   : ...
 
 #>
 Function Remove-ActiveDirectoryObject

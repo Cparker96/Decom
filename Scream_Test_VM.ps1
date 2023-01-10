@@ -14,23 +14,23 @@ Get Credentials & VM
 ===========================#>
 
 try {
-    Connect-AzAccount -Environment AzureCloud -WarningAction Ignore > $null
-    Set-AzContext -Subscription Enterprise > $null
+    Connect-AzAccount -Environment 'your_tenant' -WarningAction Ignore > $null
+    Set-AzContext -Subscription 'your_subscription' > $null
 
-    $commercialappid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Commercial-App-ID' -AsPlainText
-    $commercialappsecret = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Commercial-Secret' -AsPlainText
-    $commercialtenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Azure-Tenant-ID' -AsPlainText
-    $govappid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Gov-App-ID' -AsPlainText
-    $govappsecret = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-Gov-Client-Secret' -AsPlainText
-    $govtenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Gov-Tenant-ID' -AsPlainText
-    $gccappid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-GCC-App-ID' -AsPlainText
-    $gccappsecret = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'Decom-GCC-Client-Secret' -AsPlainText
-    $gcctenantid = Get-AzKeyVaultSecret -VaultName 'kv-308' -Name 'GCC-Tenant-ID' -AsPlainText
-    $snowapiuser = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-User' -AsPlainText 
-    $snowapipass = Get-AzKeyVaultSecret -vaultName 'kv-308' -name 'SNOW-API-Password' -AsPlainText 
-    $sqlinstance = 'txadbsazu001.database.windows.net'
-    $sqlDatabase = 'TIS_CMDB'
-    $SqlCredential = New-Object System.Management.Automation.PSCredential ('ORRCheckSql', ((Get-AzKeyVaultSecret -vaultName "kv-308" -name 'ORRChecks-Sql').SecretValue))
+    $commercialappid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $commercialappsecret = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $commercialtenantid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $govappid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $govappsecret = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $govtenantid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $gccappid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $gccappsecret = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $gcctenantid = Get-AzKeyVaultSecret -VaultName 'your_vault_name' -Name 'your_secret_name' -AsPlainText
+    $snowapiuser = Get-AzKeyVaultSecret -vaultName 'your_vault_name' -name 'your_secret_name' -AsPlainText 
+    $snowapipass = Get-AzKeyVaultSecret -vaultName 'your_vault_name' -name 'your_secret_name' -AsPlainText 
+    $sqlinstance = 'your_sql_instance'
+    $sqlDatabase = 'your_sql_database'
+    $SqlCredential = New-Object System.Management.Automation.PSCredential ('your_secret_name', ((Get-AzKeyVaultSecret -vaultName "your_vault_name" -name 'your_secret_name').SecretValue))
 }
 catch {
     Write-Error "Could not get keys from the vault" -ErrorAction Stop
@@ -121,14 +121,13 @@ Pull ticket info from SNOW
 # Build auth header
 $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $snowapiuser, $snowapipass)))
 
-# Set proper headers
 $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
 $headers.Add('Authorization',('Basic {0}' -f $base64AuthInfo))
 $headers.Add('Accept','application/json')
 $headers.Add('Content-Type','application/json')
 
 # Get change request info
-$CRmeta = "https://textronprod.servicenowservices.com/api/now/table/change_request?sysparm_query=number%3D$($VmRF.Change_Number)"
+$CRmeta = "your_SNOW_endpoint"
 $getCRticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $CRmeta
 
 $findservernameinchange = $getCRticket.result.short_description.split(': ')
@@ -151,7 +150,7 @@ if ($findservernameinchange[1] -eq $VM.Name)
 }
 
 # check to see if change request is in scheduled state
-$crticketendpoint = "https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)"
+$crticketendpoint = "your_SNOW_endpoint"
 $checkstate = Invoke-RestMethod -Headers $headers -Method Get -Uri $crticketendpoint
 
 if ($checkstate.result.state.display_value -ne 'Scheduled')
@@ -170,7 +169,7 @@ $ritmarray = $ritminfo.split(' ')
 $ritmnumber = $ritmarray[3]
 
 # Get RITM info
-$ritmmeta = "https://textronprod.servicenowservices.com/api/now/table/sc_req_item?sysparm_query=number%3D$($ritmnumber)"
+$ritmmeta = "your_SNOW_endpoint"
 $getritmticket = Invoke-RestMethod -Headers $headers -Method Get -Uri $ritmmeta
 
 # do RITM math to get user sys id
@@ -179,7 +178,7 @@ $sysidmath = $getusersysid.link.Split('/')
 $usersysid = $sysidmath[7]
 
 # Get requestor info
-$usermeta = "https://textronprod.servicenowservices.com/api/now/table/sys_user?sysparm_query=sys_id%3D$($usersysid)"
+$usermeta = "your_SNOW_endpoint"
 $getuserinfo = Invoke-RestMethod -Headers $headers -Method Get -Uri $usermeta
 
 # Get person who opened the request
@@ -243,7 +242,7 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     {
         # post comment to ticket for scream test update
         Write-Host "Updating Change Request $($VmRF.'Change_Number') to reflect scream test changes" -ForegroundColor Yellow
-        $screamtest_worknote_url = "https://textronprod.servicenowservices.com/api/now/table/change_request/$($getCRticket.result.'sys_id')"
+        $screamtest_worknote_url = "your_SNOW_endpoint"
         $screamtest_worknote = "{`"work_notes`":`"Scream test has been completed.`"}"
         $screamtest_update = Invoke-RestMethod -Headers $headers -Method Patch -Uri $screamtest_worknote_url -Body $screamtest_worknote
     } else {
@@ -251,7 +250,7 @@ if (($null -ne $lock) -and ($checktags.Properties.TagsProperty.Keys.Contains('De
     } 
 }
 
-# update dbo.AzureDecom table with Scream test results - can't do this at the end of the script because script exits due to 2 week wait period
+# update SQL table with Scream test results - can't do this at the end of the script because script exits due to 2 week wait period
 # Validation steps and status
 [System.Collections.ArrayList]$Validation  = @()
 $Validation += $Screamtest[2]
@@ -272,24 +271,24 @@ $DataTablescreamtest = $sqloutputscreamtest | ConvertTo-DbaDataTable
 
 $DataTablescreamtest | Write-DbaDbTableData -SqlInstance $sqlinstance `
 -Database $sqlDatabase `
--Table dbo.AzureDecom `
+-Table 'your_sql_table' `
 -SqlCredential $SqlCredential 
 
 # check to make sure that the sql record was created
 $checksqlrecord = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
-    -Query "SELECT * FROM dbo.AzureDecom `
+    -Query "SELECT * FROM 'your_sql_table' `
             WHERE Change_Number = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
 
 if ($null -eq $checksqlrecord)
 {
     Write-Host "There was an internal issue with writing a scream test record to SQL. This can happen because the server name variable in the change request was inputted incorrectly. `
-    Some unaccepted formats would be 'servername.txt.textron.com' or servername / 'IP Address'. The correct format should ONLY consist of 'servername'. Please add a comment on the change mentioning `
+    Some unaccepted formats would be 'servername.domain.com' or servername / 'IP Address'. The correct format should ONLY consist of 'servername'. Please add a comment on the change mentioning `
     that a SQL record was not written but that the outputted Scream Test .txt file will still be attached to the change for visibility." -ForegroundColor Yellow
 } else {
     if (($Validation[0].Status -eq 'Passed') -and ($Validation[1].Status -eq 'Passed') -and ($Validation[2].Status -eq 'Passed'))
     {
         $screamtest_pass_yes = Invoke-DbaQuery -SqlInstance $sqlinstance -Database $sqlDatabase -SqlCredential $SqlCredential `
-        -Query "UPDATE dbo.AzureDecom `
+        -Query "UPDATE 'your_sql_table' `
                 SET Screamtest_Pass = 'Y' `
                 WHERE Screamtest_Datetime IS NOT NULL `
                 AND JSON_VALUE(SNOW_Information, '$.Change_Number') = @vmchangenumber" -SqlParameters @{vmchangenumber = $VmRF.Change_Number}
@@ -361,12 +360,12 @@ $PSStyle.OutputRendering = $prevRendering
 
 # fetching and closing the 'scream test vm' change task
 Write-Host "Closing the 'scream test vm' task related to $($VmRF.Change_Number)"
-$changetasks ="https://textronprod.servicenowservices.com/api/now/table/change_task?sysparm_query=change_request.number%3D$($getCRticket.result.number)^state=1^short_descriptionLIKEscream test vm"
+$changetasks ="your_SNOW_endpoint"
 $getchangetasks = Invoke-RestMethod -Headers $headers -Method Get -Uri $changetasks
 
 foreach ($changetask in $getchangetasks.result.sys_id)
 {
-    $changetaskendpoint ="https://textronprod.servicenowservices.com/api/sn_chg_rest/change/$($getCRticket.result.sys_id)/task/$($changetask)"
+    $changetaskendpoint ="your_SNOW_endpoint"
     $changetaskbody = "{`"state`":`"3`"}"
     $closechangestasks = Invoke-RestMethod -Headers $headers -Method Patch -Uri $changetaskendpoint -Body $changetaskbody
 }
